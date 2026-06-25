@@ -206,6 +206,7 @@
     <div class="nav-item" onclick="showPage('schedule')"><span class="nav-icon">📅</span>Bid Schedule</div>
     <div class="nav-item" onclick="showPage('holidays')"><span class="nav-icon">🏛️</span>Holidays</div>
     <div class="nav-item" onclick="showPage('export')"><span class="nav-icon">⬇️</span>Export Results</div>
+    <div class="nav-item" onclick="showPage('processbid')"><span class="nav-icon">✅</span>Process Bid</div>
   </nav>
 
   <!-- CONTENT -->
@@ -800,6 +801,29 @@
       </div>
     </div>
 
+    <!-- ── PROCESS BID ──────────────────────────────────────── -->
+    <div class="page" id="page-processbid">
+      <div class="page-title">Process Bid</div>
+      <div class="page-sub">Run after bid cycle closes — splits names and assigns supervisors</div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">What this does</div>
+        <ul style="font-size:13px;color:var(--muted);line-height:2;padding-left:18px">
+          <li>Splits every employee's name into <strong>FirstName</strong> and <strong>LastName</strong> fields</li>
+          <li>For each PO and SC who placed a bid, finds their sector and assigns the SGT who bid that same sector</li>
+          <li>Writes <strong>SupervisorFirstName</strong>, <strong>SupervisorLastName</strong>, and <strong>SupervisorBadge</strong> to BidRoster</li>
+          <li>If no SGT bid a sector, that field is left blank — processing continues for all other employees</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Run Process Bid</div>
+        <div id="processbid-status" style="font-size:13px;color:var(--muted);margin-bottom:16px">Ready to process. This may take a minute for large rosters.</div>
+        <div id="processbid-log" style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:12px;font-family:var(--font-mono);color:var(--muted);max-height:300px;overflow-y:auto;display:none;margin-bottom:16px;white-space:pre-wrap"></div>
+        <button class="btn btn-primary" id="btn-processbid" onclick="runProcessBid()">▶ Run Process Bid</button>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -855,6 +879,7 @@ function showPage(id) {
   if (id === 'override')     initOverride();
   if (id === 'schedule')     { loadScheduleFromSharePoint(); loadHolidays(); }
   if (id === 'holidays')     { loadHolidays(); previewHolidays(); }
+  if (id === 'processbid')   initProcessBid();
 }
 
 // ── SHAREPOINT HELPERS (same as employee portal) ─────────────
@@ -1192,9 +1217,15 @@ async function submitOverrideBid() {
   }
   try {
     const now = new Date().toISOString();
+    const overrideNameParts = String(selectedEmployee.Title || '').split(',');
     await spPatch(CONFIG.LIST_SLOTS, selectedOverrideSlot.Id, {
-      IsAvailable: false, FilledByName: selectedEmployee.Title,
-      FilledByBadge: selectedEmployee.BadgeNumber, FilledAt: now,
+      IsAvailable:       false,
+      FilledByName:      String(selectedEmployee.Title || ''),
+      FilledByLastName:  (overrideNameParts[0] || '').trim(),
+      FilledByFirstName: (overrideNameParts[1] || '').trim(),
+      FilledByBadge:     String(selectedEmployee.BadgeNumber || ''),
+      FilledByEmail:     String(selectedEmployee.Email || ''),
+      FilledAt:          now,
     });
     await spPatch(CONFIG.LIST_ROSTER, selectedEmployee.Id, {
       HasBid: true, SelectedSlotID: selectedOverrideSlot.Id,
@@ -1210,9 +1241,10 @@ async function submitOverrideBid() {
       DIV:          String(selectedOverrideSlot.field_3 || ''),
       Watch:        String(selectedOverrideSlot.field_5 || ''),
       DaysOff:      String(selectedOverrideSlot.field_10 || ''),
-      Sector:      String(selectedOverrideSlot.field_11 || ''),
-      Action:       'PROCTOR_BID',
-      ProctorEmail: String(proctorUser || 'unknown'),
+      Section:         String(selectedOverrideSlot.field_11 || ''),
+      Action:          'PROCTOR_BID',
+      ProctorEmail:    String(proctorUser || 'unknown'),
+      ActionTimestamp: new Date().toISOString(),
     };
     try {
       await spPost(CONFIG.LIST_AUDITLOG, auditEntry);
@@ -1278,7 +1310,7 @@ async function confirmRemoval() {
       Title: `BID REMOVED: ${removeTarget.BadgeNumber}`,
       EmployeeName: removeTarget.Title, BadgeNumber: removeTarget.BadgeNumber,
       Rank: removeTarget.Rank, OppCode: removeTarget.SelectedOppCode,
-      BidTimestamp: new Date().toISOString(), Action: 'BID_REMOVED',
+      ActionTimestamp: new Date().toISOString(), Action: 'BID_REMOVED',
       Reason: reason, ProctorEmail: proctorUser || 'unknown',
     });
     document.getElementById('remove-confirm-modal').classList.remove('open');
@@ -1304,9 +1336,9 @@ async function loadAuditLog() {
       filter ? `Action eq '${filter}'` : '',
       ''
     );
-    logs.sort((a,b) => new Date(b.BidTimestamp) - new Date(a.BidTimestamp));
+    logs.sort((a,b) => new Date(b.ActionTimestamp) - new Date(a.ActionTimestamp));
     tbody.innerHTML = logs.map(log => {
-      const ts  = log.BidTimestamp ? new Date(log.BidTimestamp).toLocaleString() : '—';
+      const ts  = log.ActionTimestamp ? new Date(log.ActionTimestamp).toLocaleString() : '—';
       const act = log.Action === 'EMPLOYEE_BID' ? '<span style="color:var(--green)">Employee</span>'
                 : log.Action === 'PROCTOR_BID'  ? '<span style="color:var(--amber)">Proctor</span>'
                 : '<span style="color:var(--red)">Removed</span>';
@@ -1688,10 +1720,126 @@ async function exportAudit() {
   try {
     const logs = await spGet(CONFIG.LIST_AUDITLOG, '', '');
     const headers = ['Timestamp','Action','EmployeeName','Badge','Rank','OppCode','DIV','Watch','DaysOff','Sector','ProctorEmail','Reason'];
-    const rows = logs.map(l => [l.BidTimestamp,l.Action,l.EmployeeName,l.BadgeNumber,l.Rank,l.OppCode,l.DIV,l.Watch,l.DaysOff,l.Section,l.ProctorEmail,l.Reason]);
+    const rows = logs.map(l => [l.ActionTimestamp,l.Action,l.EmployeeName,l.BadgeNumber,l.Rank,l.OppCode,l.DIV,l.Watch,l.DaysOff,l.Section,l.ProctorEmail,l.Reason]);
     downloadCSV(headers, rows, `audit_log_${new Date().toISOString().slice(0,10)}.csv`);
   } catch(e) { alert('Export error: ' + e.message); }
 }
+
+// ── PROCESS BID ──────────────────────────────────────────────
+function initProcessBid() {
+  document.getElementById('processbid-status').textContent = 'Ready to process. This may take a minute for large rosters.';
+  document.getElementById('processbid-log').style.display = 'none';
+  document.getElementById('processbid-log').textContent = '';
+  document.getElementById('btn-processbid').disabled = false;
+  document.getElementById('btn-processbid').textContent = '▶ Run Process Bid';
+}
+
+async function runProcessBid() {
+  const btn    = document.getElementById('btn-processbid');
+  const status = document.getElementById('processbid-status');
+  const log    = document.getElementById('processbid-log');
+
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  log.style.display = 'block';
+  log.textContent = '';
+
+  const logLine = (msg) => {
+    log.textContent += msg + '\n';
+    log.scrollTop = log.scrollHeight;
+  };
+
+  try {
+    // Step 1: Load full roster
+    logLine('Loading BidRoster...');
+    const roster = await spGet(CONFIG.LIST_ROSTER, '', 'Id,Title,Rank,HasBid,SelectedOppCode');
+    logLine(`Loaded ${roster.length} employees.`);
+
+    // Step 2: Load all slots to build sector lookup
+    logLine('Loading BidSlots...');
+    const slots = await spGet(CONFIG.LIST_SLOTS, '', 'Id,field_11,field_13,IsAvailable');
+    // Build map: OppCode -> sector (field_11)
+    const oppToSector = {};
+    slots.forEach(s => { if (s.field_13) oppToSector[s.field_13] = s.field_11 || ''; });
+    logLine(`Loaded ${slots.length} slots.`);
+
+    // Step 3: Build sector -> SGT lookup from roster bids
+    // Find all SGTs who have bid and get their sector
+    const sectorToSGT = {};
+    roster.forEach(emp => {
+      if (emp.Rank === 'SGT' && emp.HasBid && emp.SelectedOppCode) {
+        const sector = oppToSector[emp.SelectedOppCode];
+        if (sector) {
+          const parts = String(emp.Title || '').split(',');
+          sectorToSGT[sector] = {
+            lastName:  (parts[0] || '').trim(),
+            firstName: (parts[1] || '').trim(),
+            badge:     emp.BadgeNumber || '',
+          };
+        }
+      }
+    });
+    logLine(`Found ${Object.keys(sectorToSGT).length} SGT sector assignments.`);
+
+    // Step 4: Process each employee
+    let nameCount = 0, supCount = 0, skipCount = 0, errCount = 0;
+
+    for (const emp of roster) {
+      try {
+        // Split Title "Lastname, Firstname" into parts
+        const parts = String(emp.Title || '').split(',');
+        const lastName  = (parts[0] || '').trim();
+        const firstName = (parts[1] || '').trim();
+
+        const patch = { LastName: lastName, FirstName: firstName };
+
+        // Assign supervisor for POs and SCs who have bid
+        if ((emp.Rank === 'PO' || emp.Rank === 'SC') && emp.HasBid && emp.SelectedOppCode) {
+          const sector = oppToSector[emp.SelectedOppCode];
+          const sgt    = sector ? sectorToSGT[sector] : null;
+          if (sgt) {
+            patch.SupervisorLastName  = sgt.lastName;
+            patch.SupervisorFirstName = sgt.firstName;
+            patch.SupervisorBadge     = sgt.badge;
+            supCount++;
+            logLine(`  ✓ ${lastName}, ${firstName} → Supervisor: ${sgt.lastName}, ${sgt.firstName} (${sgt.badge}) [${sector}]`);
+          } else {
+            patch.SupervisorLastName  = '';
+            patch.SupervisorFirstName = '';
+            patch.SupervisorBadge     = '';
+            skipCount++;
+            logLine(`  ⚠ ${lastName}, ${firstName} — no SGT found for sector: ${sector || 'unknown'}`);
+          }
+        }
+
+        await spPatch(CONFIG.LIST_ROSTER, emp.Id, patch);
+        nameCount++;
+      } catch(empErr) {
+        errCount++;
+        logLine(`  ✗ Error processing ${emp.Title}: ${empErr.message}`);
+      }
+    }
+
+    logLine('');
+    logLine(`✅ Complete!`);
+    logLine(`   Names split: ${nameCount}`);
+    logLine(`   Supervisors assigned: ${supCount}`);
+    logLine(`   No SGT found (left blank): ${skipCount}`);
+    logLine(`   Errors: ${errCount}`);
+
+    status.textContent = `Done — ${nameCount} names split, ${supCount} supervisors assigned.`;
+    status.style.color = 'var(--green)';
+    btn.textContent = '✓ Complete';
+
+  } catch(e) {
+    logLine('\n❌ Fatal error: ' + e.message);
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = 'var(--red)';
+    btn.disabled = false;
+    btn.textContent = '▶ Run Process Bid';
+  }
+}
+
 
 function downloadCSV(headers, rows, filename) {
   const csv = [headers, ...rows].map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');

@@ -1400,12 +1400,17 @@ async function submitBid() {
     // Step 2: Mark slot as taken
     // If this fails, roll back the employee record
     try {
+      const nameParts = String(currentUser.name || '').split(',');
+      const filledLastName  = (nameParts[0] || '').trim();
+      const filledFirstName = (nameParts[1] || '').trim();
       await spPatch(CONFIG.LIST_SLOTS, pendingSlot.Id, {
-        IsAvailable:   false,
-        FilledByName:  String(currentUser.name || ''),
-        FilledByBadge: String(currentUser.badge || ''),
-        FilledByEmail: String(currentUser.email || ''),
-        FilledAt:      now,
+        IsAvailable:       false,
+        FilledByName:      String(currentUser.name || ''),
+        FilledByLastName:  filledLastName,
+        FilledByFirstName: filledFirstName,
+        FilledByBadge:     String(currentUser.badge || ''),
+        FilledByEmail:     String(currentUser.email || ''),
+        FilledAt:          now,
       });
     } catch(slotErr) {
       // Roll back employee record so they can try again
@@ -1423,22 +1428,20 @@ async function submitBid() {
 
     // 3. Write audit log - non-blocking so a failure doesn't block the bid
     try {
-      const auditPayload = {
-        Title:        `BID: ${currentUser.badge}`,
-        EmployeeName: String(currentUser.name || ''),
-        BadgeNumber:  String(currentUser.badge || ''),
-        Rank:         String(currentUser.rank || ''),
-        OppCode:      String(pendingSlot.field_13 || ''),
-        DIV:          String(pendingSlot.field_3 || ''),
-        Watch:        String(pendingSlot.field_5 || ''),
-        DaysOff:      String(pendingSlot.field_10 || ''),
-        Section:      String(pendingSlot.field_11 || ''),
-        Action:       'EMPLOYEE_BID',
-        ProctorEmail: 'self',
-      };
-      // BidTimestamp is Date/Time — must be valid ISO string or omitted
-      try { auditPayload.BidTimestamp = new Date().toISOString(); } catch(e) {}
-      await spPost(CONFIG.LIST_AUDITLOG, auditPayload);
+      await spPost(CONFIG.LIST_AUDITLOG, {
+        Title:           `BID: ${currentUser.badge}`,
+        EmployeeName:    String(currentUser.name || ''),
+        BadgeNumber:     String(currentUser.badge || ''),
+        Rank:            String(currentUser.rank || ''),
+        OppCode:         String(pendingSlot.field_13 || ''),
+        DIV:             String(pendingSlot.field_3 || ''),
+        Watch:           String(pendingSlot.field_5 || ''),
+        DaysOff:         String(pendingSlot.field_10 || ''),
+        Section:         String(pendingSlot.field_11 || ''),
+        Action:          'EMPLOYEE_BID',
+        ProctorEmail:    'self',
+        ActionTimestamp: new Date().toISOString(),
+      });
     } catch(auditErr) {
       console.warn('Audit log write failed (non-critical):', auditErr.message, auditErr);
     }
