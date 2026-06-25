@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patrol Bid Portal</title>
+<style>
+  /* ── DESIGN TOKENS ─────────────────────────────────────────────────────── */
+  :root {
+    --navy:       #0F1F3D;
+    --navy-mid:   #162548;
+    --navy-light: #1E3260;
+    --gold:       #C8A84B;
+    --gold-light: #E2C46E;
+    --white:      #F4F6FA;
+    --muted:      #7A8FAD;
+    --green:      #27AE60;
+    --green-dim:  #1a7a44;
+    --red:        #C0392B;
+    --red-dim:    #922b21;
+    --amber:      #E67E22;
+    --card-bg:    #0D1A35;
+    --border:     #1F3460;
+    --radius:     6px;
+    --font-mono:  'Courier New', monospace;
+    --font-ui:    'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: linear-gradient(160deg, #0F1F3D 0%, #0A1628 100%);
+    color: var(--white);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────────────────────── */
+  header {
+    background: var(--navy-mid);
+    border-bottom: 3px solid var(--gold);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .badge-icon {
+    width: 40px; height: 40px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 0 2px var(--navy-mid), 0 0 0 4px var(--gold);
+  }
+  .dpd-patch {
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 15px; font-weight: 700; letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+  .header-sub   { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .user-pill {
+    background: var(--navy-light);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: var(--white);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rank-badge {
+    background: var(--gold);
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .btn-signout {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-signout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── LOGIN SCREEN ───────────────────────────────────────────────────────── */
+  #login-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 60px);
+    padding: 24px;
+    background: linear-gradient(160deg, #0F1F3D 0%, #0A1628 100%);
+  }
+  .login-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .login-shield { font-size: 48px; margin-bottom: 16px; }
+  .login-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .login-card p  { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
+  .ms-login-btn {
+    width: 100%;
+    background: #2F7FD0;
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 13px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.2s;
+    margin-bottom: 16px;
+  }
+  .ms-login-btn:hover { background: #1a6abf; }
+  .ms-logo { font-size: 18px; }
+  .login-note { font-size: 11px; color: var(--muted); }
+
+  /* ── MAIN LAYOUT ────────────────────────────────────────────────────────── */
+  #app { display: none; }
+  .app-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ── SIDEBAR ────────────────────────────────────────────────────────────── */
+  .sidebar {
+    background: var(--navy-mid);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* My Status Card */
+  .status-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .status-card-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+  .status-label { color: var(--muted); }
+  .status-value { font-weight: 600; }
+
+  /* Bid Window Card */
+  .window-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .window-card.active   { border-color: var(--green); background: #0d2218; }
+  .window-card.upcoming { border-color: var(--amber); }
+  .window-card.closed   { border-color: var(--border); opacity: 0.6; }
+  .window-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .window-label.green { color: var(--green); }
+  .window-label.amber { color: var(--amber); }
+  .window-label.gray  { color: var(--muted); }
+  .window-time { font-size: 22px; font-weight: 700; font-family: var(--font-mono); color: var(--gold); }
+  .window-desc { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .countdown { font-size: 28px; font-weight: 700; font-family: var(--font-mono); color: var(--green); }
+
+  /* My Selection Card */
+  .selection-card {
+    background: var(--card-bg);
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: none;
+  }
+  .selection-card.visible { display: block; }
+  .selection-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); text-transform: uppercase; margin-bottom: 10px; }
+  .selection-detail { font-size: 13px; margin-bottom: 5px; }
+  .selection-detail span { color: var(--muted); }
+
+  /* Filters */
+  .filter-section { }
+  .filter-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+  .filter-group { margin-bottom: 12px; }
+  .filter-group label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 5px; }
+  select, input[type="text"] {
+    width: 100%;
+    background: var(--navy);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--white);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: var(--font-ui);
+  }
+  select:focus, input:focus { outline: none; border-color: var(--gold); }
+  .btn-clear-filter {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .btn-clear-filter:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ── MAIN CONTENT ───────────────────────────────────────────────────────── */
+  .main-content { padding: 20px; overflow-y: auto; }
+
+  /* Bid Active Banner */
+  .bid-banner {
+    background: linear-gradient(90deg, #0d2218, #0d2218 40%, transparent);
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    display: none;
+  }
+  .bid-banner.visible { display: flex; }
+  .bid-banner-text h3 { font-size: 15px; font-weight: 700; color: var(--green); }
+  .bid-banner-text p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .bid-banner-timer { font-size: 28px; font-weight: 700; font-family: var(--font-mono); color: var(--green); }
+
+  /* Stats Row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat-num   { font-size: 24px; font-weight: 700; font-family: var(--font-mono); color: var(--gold); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Bid Table */
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .table-title { font-size: 14px; font-weight: 700; color: var(--white); }
+  .table-meta  { font-size: 12px; color: var(--muted); }
+
+  .bid-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--navy-light);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: var(--navy-light); }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+
+  /* Status chips */
+  .chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .chip-available { background: #0d2218; color: var(--green);  border: 1px solid var(--green-dim); }
+  .chip-taken     { background: #1f0a0a; color: var(--red);    border: 1px solid var(--red-dim); }
+  .chip-sgt       { background: #1a1208; color: var(--gold);   border: 1px solid #6b4a10; }
+  .chip-sc        { background: #0a1220; color: #6ab4ff;       border: 1px solid #1a3a6a; }
+  .chip-po        { background: #0a1a10; color: #6affa0;       border: 1px solid #1a5a30; }
+
+  /* Bid Button */
+  .btn-bid {
+    background: var(--gold);
+    color: var(--navy);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-bid:hover:not(:disabled) { background: var(--gold-light); transform: translateY(-1px); }
+  .btn-bid:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  /* Taken cell */
+  .taken-by { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+
+  /* Section separator */
+  .section-sep {
+    background: var(--navy-light);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+  }
+
+  /* ── CONFIRM MODAL ──────────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card-bg);
+    border: 1px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 32px;
+    max-width: 440px;
+    width: 90%;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .modal-detail {
+    background: var(--navy);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+  .modal-detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+  .modal-detail-row:last-child { margin-bottom: 0; }
+  .modal-detail-label { color: var(--muted); }
+  .modal-detail-value { font-weight: 600; }
+  .modal-warning {
+    background: #1a1208;
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--amber);
+    margin-bottom: 20px;
+  }
+  .modal-buttons { display: flex; gap: 10px; }
+  .btn-confirm {
+    flex: 1;
+    background: var(--gold);
+    color: var(--navy);
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-confirm:hover { background: var(--gold-light); }
+  .btn-cancel {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-cancel:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── SUCCESS MODAL ──────────────────────────────────────────────────────── */
+  .success-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    padding: 32px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+  }
+  .success-icon { font-size: 48px; margin-bottom: 12px; }
+  .success-modal h3 { font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+  .success-modal p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .success-detail {
+    background: var(--navy);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  .btn-done {
+    background: var(--green);
+    color: var(--navy);
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 32px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ── LUNCH BANNER ───────────────────────────────────────────────────────── */
+  .lunch-banner {
+    background: #1a1208;
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--amber);
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .lunch-banner.visible { display: flex; }
+
+  /* ── LIVE INDICATOR ─────────────────────────────────────────────────────── */
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 6px var(--green);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── EMPTY STATE ────────────────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+  .empty-state-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; color: var(--white); margin-bottom: 6px; }
+  .empty-state p  { font-size: 13px; }
+
+  /* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .app-grid { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    header { padding: 0 14px; }
+    .header-title { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABQCAYAAADvCdDvAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA1hpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0iRTg5QjUyOEU1QjBBQkRBQjRBQzBDRTgwOEJDQjcwRDYiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RDdCMEIwRkFGODBBMTFFNEI2NzJEQUQ2MjYwREI5MjEiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RDdCMEIwRjlGODBBMTFFNEI2NzJEQUQ2MjYwREI5MjEiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjAwODAxMTc0MDcyMDY4MTE4MDgzREY0Mjg4QUM4RDVEIiBzdFJlZjpkb2N1bWVudElEPSJFODlCNTI4RTVCMEFCREFCNEFDMENFODA4QkNCNzBENiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRG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" alt="Dallas Police Department" style="height:44px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">
+    <div>
+      <div class="header-title">PATROL BID PORTAL</div>
+      <div class="header-sub">Dallas Police Department &nbsp;·&nbsp; <span id="hdr-bid-year">2026</span> Patrol Bid</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div id="hdr-user" class="user-pill" style="display:none">
+      <span class="live-dot"></span>
+      <span id="hdr-name">—</span>
+      <span id="hdr-rank" class="rank-badge">—</span>
+    </div>
+    <button class="btn-signout" id="btn-signout" style="display:none" onclick="signOut()">Sign Out</button>
+  </div>
+</header>
+
+<!-- ── LOGIN SCREEN ───────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-shield">🛡️</div>
+    <h2>Patrol Bid Portal</h2>
+    <p>Sign in with your city Microsoft 365 account to view available shifts and place your bid.</p>
+    <button class="ms-login-btn" onclick="handleMSLogin()">
+      <span class="ms-logo">⊞</span>
+      Sign in with Microsoft
+    </button>
+    <p class="login-note">Use your @cityemail.gov account · Contact the bid proctor at 214-671-4434 if you have trouble signing in</p>
+  </div>
+</div>
+
+<!-- ── MAIN APP ───────────────────────────────────────────────────────────── -->
+<div id="app">
+  <div class="app-grid">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <!-- My Status -->
+      <div class="status-card">
+        <div class="status-card-title">My Status</div>
+        <div class="status-row">
+          <span class="status-label">Name</span>
+          <span class="status-value" id="sb-name">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Badge</span>
+          <span class="status-value" id="sb-badge">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Rank</span>
+          <span class="status-value" id="sb-rank">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Seniority #</span>
+          <span class="status-value" id="sb-seniority">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Bid Status</span>
+          <span class="status-value" id="sb-bid-status" style="color:var(--amber)">Pending</span>
+        </div>
+      </div>
+
+      <!-- Bid Window -->
+      <div class="window-card upcoming" id="window-card">
+        <div class="window-label amber" id="window-label">YOUR BID WINDOW</div>
+        <div class="window-time" id="window-time">—</div>
+        <div class="window-desc" id="window-desc">Awaiting bid schedule configuration.</div>
+        <div class="countdown" id="countdown" style="display:none"></div>
+      </div>
+
+      <!-- My Selection (shown after bidding) -->
+      <div class="selection-card" id="selection-card">
+        <div class="selection-title">✓ Your Selection</div>
+        <div class="selection-detail"><span>Division: </span><strong id="sel-div">—</strong></div>
+        <div class="selection-detail"><span>Watch: </span><strong id="sel-watch">—</strong></div>
+        <div class="selection-detail"><span>Days Off: </span><strong id="sel-days">—</strong></div>
+        <div class="selection-detail"><span>Sector: </span><strong id="sel-sector">—</strong></div>
+        <div class="selection-detail"><span>Shift: </span><strong id="sel-shift">—</strong></div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-section">
+        <div class="filter-title">Filter Bid Board</div>
+        <div class="filter-group">
+          <label>Division</label>
+          <select id="f-div" onchange="applyFilters()">
+            <option value="">All Divisions</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Watch</label>
+          <select id="f-watch" onchange="applyFilters()">
+            <option value="">All Watches</option>
+            <option value="1">Alpha (Watch 1)</option>
+            <option value="2">Bravo (Watch 2)</option>
+            <option value="3">Charlie (Watch 3)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Days Off</label>
+          <select id="f-days" onchange="applyFilters()">
+            <option value="">All Days Off</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Rank</label>
+          <select id="f-rank" onchange="applyFilters()">
+            <option value="">All Ranks</option>
+            <option value="SGT">Sergeant (SGT)</option>
+            <option value="SC">Senior Corporal (SC)</option>
+            <option value="PO">Police Officer (PO)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Show</label>
+          <select id="f-avail" onchange="applyFilters()">
+            <option value="">All Slots</option>
+            <option value="available">Available Only</option>
+            <option value="taken">Taken Only</option>
+          </select>
+        </div>
+        <button class="btn-clear-filter" onclick="clearFilters()">Clear Filters</button>
+      </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- Active bid banner -->
+      <div class="bid-banner" id="bid-banner">
+        <div class="bid-banner-text">
+          <h3>🟢 Your bid window is open!</h3>
+          <p>Select an available slot below. Your window closes at <span id="banner-close-time">—</span>.</p>
+        </div>
+        <div class="bid-banner-timer" id="banner-timer">—</div>
+      </div>
+
+      <!-- Lunch break banner -->
+      <div class="lunch-banner" id="lunch-banner">
+        ⏸️ <strong>Lunch Break</strong> — The bid line is paused until <span id="lunch-resume" style="margin-left:4px;font-weight:700">—</span>. You may still place your own bid online.
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-label">Total Slots</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-avail" style="color:var(--green)">—</div>
+          <div class="stat-label">Available</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-taken" style="color:var(--red)">—</div>
+          <div class="stat-label">Filled</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-filtered">—</div>
+          <div class="stat-label">Showing</div>
+        </div>
+      </div>
+
+      <!-- Table header -->
+      <div class="table-header">
+        <span class="table-title"><span class="live-dot"></span>Live Bid Board</span>
+        <span class="table-meta" id="last-updated">Last updated: —</span>
+      </div>
+
+      <!-- Bid table -->
+      <div class="bid-table-wrap">
+        <table id="bid-table">
+          <thead>
+            <tr>
+              <th>Division</th>
+              <th>Watch</th>
+              <th>Shift Time</th>
+              <th>Days Off</th>
+              <th>Sector</th>
+              <th>Rank</th>
+              <th>Status</th>
+              <th>Filled By</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="bid-tbody">
+            <tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">⏳</div><h3>Loading bid data...</h3><p>Connecting to SharePoint...</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── CONFIRM MODAL ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <h3>Confirm Your Bid</h3>
+    <p class="modal-sub">Please review your selection carefully. <strong>Bids cannot be changed</strong> once submitted. Contact the bid proctor if you need assistance.</p>
+    <div class="modal-detail">
+      <div class="modal-detail-row"><span class="modal-detail-label">Division</span><span class="modal-detail-value" id="mc-div">—</span></div>
+      <div class="modal-detail-row"><span class="modal-detail-label">Watch</span><span class="modal-detail-value" id="mc-watch">—</span></div>
+      <div class="modal-detail-row"><span class="modal-detail-label">Shift</span><span class="modal-detail-value" id="mc-shift">—</span></div>
+      <div class="modal-detail-row"><span class="modal-detail-label">Days Off</span><span class="modal-detail-value" id="mc-days">—</span></div>
+      <div class="modal-detail-row"><span class="modal-detail-label">Sector</span><span class="modal-detail-value" id="mc-sector">—</span></div>
+      <div class="modal-detail-row"><span class="modal-detail-label">Slot ID</span><span class="modal-detail-value" id="mc-oppcode" style="font-family:var(--font-mono);font-size:11px">—</span></div>
+    </div>
+    <div class="modal-warning">⚠️ This action is final. Once you click "Confirm Bid", your selection is locked and a confirmation email will be sent to your city email address.</div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closeConfirmModal()">Go Back</button>
+      <button class="btn-confirm" onclick="submitBid()">Confirm Bid</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUCCESS MODAL ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="success-modal">
+  <div class="success-modal">
+    <div class="success-icon">✅</div>
+    <h3>Bid Confirmed!</h3>
+    <p>Your selection has been recorded. A confirmation email has been sent to your city email address. The bid proctor line is available at 214-671-4434 if you have questions.</p>
+    <div class="success-detail" id="success-detail"></div>
+    <button class="btn-done" onclick="closeSuccessModal()">View Bid Board</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION — Update these values for your SharePoint environment
+// ═══════════════════════════════════════════════════════════════════════════
+const CONFIG = {
+  // Your SharePoint site URL
+  SP_SITE_URL: 'https://dallastxgov.sharepoint.com/sites/PatrolBid',
+
+  // SharePoint list names (must match exactly what you create)
+  LIST_SLOTS:   'BidSlots',
+  LIST_ROSTER:  'BidRoster',
+  LIST_CONFIG:  'BidConfig',
+  LIST_AUDITLOG:'BidAuditLog',
+
+  // Microsoft App Registration Client ID (from Azure AD app registration)
+  CLIENT_ID: '0d384d2a-9a9e-46f6-a195-ad63f9e94f06',
+
+  // Your tenant ID
+  TENANT_ID: '2935709e-c10c-4809-a302-852d369f8700',
+
+  // Bid proctor phone
+  PROCTOR_PHONE: '214-671-4434',
+
+  // How often to refresh the bid board (milliseconds)
+  REFRESH_INTERVAL: 15000,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MICROSOFT AUTHENTICATION (MSAL)
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTE: In production, load MSAL from:
+// <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js">
+// For this file, MSAL is referenced below and must be included separately
+// or loaded via CDN in the SharePoint page that hosts this app.
+
+let msalInstance = null;
+let accessToken  = null;
+let currentUser  = null;  // { name, badge, rank, email, seniorityOrder, hasBid, selectedSlot }
+let pendingSlot  = null;  // slot being confirmed
+let allSlots     = [];    // full slot list from SharePoint
+let filteredSlots = [];
+let bidConfig     = null; // current bid config from SharePoint
+let refreshTimer  = null;
+let countdownTimer = null;
+
+// ── MSAL initialisation ────────────────────────────────────────────────────
+function initMSAL() {
+  // Guard: if MSAL library not loaded yet, retry
+  if (typeof msal === 'undefined') {
+    setTimeout(initMSAL, 500);
+    return;
+  }
+  msalInstance = new msal.PublicClientApplication({
+    auth: {
+      clientId:    CONFIG.CLIENT_ID,
+      authority:   `https://login.microsoftonline.com/${CONFIG.TENANT_ID}`,
+      redirectUri: 'https://jarednielsen1.github.io/dpd-bid-portal/bid-portal.html',
+    },
+    cache: { cacheLocation: 'sessionStorage' },
+  });
+
+  // Handle redirect after login
+  msalInstance.handleRedirectPromise().then(response => {
+    if (response) onLoginSuccess(response);
+    else checkExistingSession();
+  }).catch(console.error);
+}
+
+async function handleMSLogin() {
+  if (!msalInstance) {
+    alert('Authentication library not loaded. Please refresh and try again.');
+    return;
+  }
+  try {
+    await msalInstance.loginRedirect({
+      scopes: ['User.Read', 'https://dallastxgov.sharepoint.com/AllSites.Write'],
+      prompt: 'select_account',
+    });
+  } catch (e) { console.error(e); }
+}
+
+function checkExistingSession() {
+  const accounts = msalInstance ? msalInstance.getAllAccounts() : [];
+  if (accounts.length > 0) acquireToken(accounts[0]);
+}
+
+async function acquireToken(account) {
+  try {
+    const result = await msalInstance.acquireTokenSilent({
+      scopes: ['User.Read'],
+      account,
+    });
+    onLoginSuccess(result);
+  } catch (e) {
+    // Silent acquisition failed — show login
+  }
+}
+
+async function onLoginSuccess(authResult) {
+  accessToken = authResult.accessToken;
+  const email = authResult.account.username;
+  await loadUserFromRoster(email);
+}
+
+function signOut() {
+  if (msalInstance) msalInstance.logoutRedirect();
+  else showLogin();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHAREPOINT API HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+async function getSharePointToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) throw new Error('Not logged in');
+  const result = await msalInstance.acquireTokenSilent({
+    scopes: ['https://dallastxgov.sharepoint.com/AllSites.Write'],
+    account: accounts[0],
+  });
+  return result.accessToken;
+}
+
+async function spGet(listName, filter = '', select = '') {
+  let url = `${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${listName}')/items`;
+  const params = [];
+  if (filter) params.push(`$filter=${encodeURIComponent(filter)}`);
+  if (select) params.push(`$select=${encodeURIComponent(select)}`);
+  params.push('$top=5000');
+  if (params.length) url += '?' + params.join('&');
+
+  const spToken = await getSharePointToken();
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${spToken}`,
+      'Accept': 'application/json;odata=nometadata',
+    }
+  });
+  if (!res.ok) throw new Error(`SharePoint GET failed: ${res.status}`);
+  const data = await res.json();
+  return data.value;
+}
+
+async function spGetFormDigest() {
+  const spToken = await getSharePointToken();
+  const res = await fetch(`${CONFIG.SP_SITE_URL}/_api/contextinfo`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${spToken}`,
+      'Accept': 'application/json;odata=nometadata',
+    }
+  });
+  const data = await res.json();
+  return data.FormDigestValue;
+}
+
+async function spPatch(listName, itemId, body) {
+  const digest = await spGetFormDigest();
+  const spToken = await getSharePointToken();
+  const res = await fetch(
+    `${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${listName}')/items(${itemId})`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${spToken}`,
+        'Accept':        'application/json;odata=nometadata',
+        'Content-Type':  'application/json;odata=nometadata',
+        'X-RequestDigest': digest,
+        'IF-MATCH':      '*',
+        'X-HTTP-Method': 'MERGE',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok && res.status !== 204) {
+    let errDetail = '';
+    try { const e = await res.json(); errDetail = e['odata.error']?.message?.value || JSON.stringify(e); } catch(x) {}
+    throw new Error(`SharePoint PATCH failed: ${res.status}${errDetail ? ' — ' + errDetail : ''}`);
+  }
+}
+
+async function spPost(listName, body) {
+  const digest = await spGetFormDigest();
+  const spToken = await getSharePointToken();
+  const res = await fetch(
+    `${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${listName}')/items`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${spToken}`,
+        'Accept':        'application/json;odata=nometadata',
+        'Content-Type':  'application/json;odata=nometadata',
+        'X-RequestDigest': digest,
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) throw new Error(`SharePoint POST failed: ${res.status}`);
+  return await res.json();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// USER LOADING
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadUserFromRoster(email) {
+  try {
+    // Normalize email - treat dallaspolice.gov and dallascityhall.com as interchangeable
+    const emailAlt = email.includes('@dallaspolice.gov')
+      ? email.replace('@dallaspolice.gov', '@dallascityhall.com')
+      : email.replace('@dallascityhall.com', '@dallaspolice.gov');
+
+    let items = await spGet(
+      CONFIG.LIST_ROSTER,
+      `Email eq '${email}'`,
+      'Id,Title,BadgeNumber,Rank,SeniorityOrder,Email,HasBid,SelectedSlotID,SelectedOppCode'
+    );
+
+    // If not found, try alternate email format
+    if (!items || items.length === 0) {
+      items = await spGet(
+        CONFIG.LIST_ROSTER,
+        `Email eq '${emailAlt}'`,
+        'Id,Title,BadgeNumber,Rank,SeniorityOrder,Email,HasBid,SelectedSlotID,SelectedOppCode'
+      );
+    }
+
+    if (!items || items.length === 0) {
+      showError(`Your email (${email}) was not found in the bid roster. Contact the bid proctor at ${CONFIG.PROCTOR_PHONE}.`);
+      return;
+    }
+
+    const emp = items[0];
+    currentUser = {
+      spId:          emp.Id,
+      name:          emp.Title,
+      badge:         emp.BadgeNumber,
+      rank:          emp.Rank,
+      email:         email,
+      seniorityOrder: emp.SeniorityOrder,
+      hasBid:        emp.HasBid || false,
+      selectedSlotId: emp.SelectedSlotID || null,
+      selectedOppCode: emp.SelectedOppCode || null,
+    };
+
+    showApp();
+    await Promise.all([loadBidConfig(), loadAllSlots()]);
+    startAutoRefresh();
+  } catch (e) {
+    showError('Could not connect to the bid roster. Please try again or contact the bid proctor. Error: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BID CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadBidConfig() {
+  try {
+    const items = await spGet(
+      CONFIG.LIST_CONFIG,
+      `IsActive eq 1`,
+      'Title,ActiveRank,SGTStartDate,SGTEndTime,SCStartDate,SCEndTime,POStartDate,POEndTime,LunchStart,LunchEnd,BidYear'
+    );
+    bidConfig = items && items.length > 0 ? items[0] : null;
+    renderBidWindow();
+  } catch (e) {
+    console.warn('Could not load bid config:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SLOTS LOADING + RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+let filtersPopulated = false;
+
+async function loadAllSlots() {
+  try {
+    const items = await spGet(
+      CONFIG.LIST_SLOTS,
+      '',
+      ''
+    );
+    allSlots = items || [];
+    // Only populate filter dropdowns on first load - not on refresh
+    // This prevents filter selections from resetting every 15 seconds
+    if (!filtersPopulated) {
+      populateFilterOptions();
+      filtersPopulated = true;
+    }
+    applyFilters();
+    updateStats();
+    document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('bid-tbody').innerHTML =
+      `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not load bid data</h3><p>${e.message}</p></div></td></tr>`;
+  }
+}
+
+function populateFilterOptions() {
+  const divs = [...new Set(allSlots.map(s => s.field_3))].sort();
+  const days = [...new Set(allSlots.map(s => s.field_10))].sort();
+
+  const fDiv = document.getElementById('f-div');
+  fDiv.innerHTML = '<option value="">All Divisions</option>' +
+    divs.map(d => `<option value="${d}">${d}</option>`).join('');
+
+  const fDays = document.getElementById('f-days');
+  fDays.innerHTML = '<option value="">All Days Off</option>' +
+    days.map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
+function applyFilters() {
+  const fDiv   = document.getElementById('f-div').value;
+  const fWatch = document.getElementById('f-watch').value;
+  const fDays  = document.getElementById('f-days').value;
+  const fRank  = document.getElementById('f-rank').value;
+  const fAvail = document.getElementById('f-avail').value;
+
+  filteredSlots = allSlots.filter(s => {
+    if (fDiv   && s.field_3 !== fDiv) return false;
+    if (fWatch && String(s.field_5) !== String(fWatch)) return false;
+    if (fDays  && s.field_10 !== fDays)  return false;
+    if (fRank  && s.field_12 !== fRank) return false;
+    if (fAvail === 'available'  && s.IsAvailable === false) return false;
+    if (fAvail === 'taken'      &&  s.IsAvailable !== false) return false;
+    return true;
+  });
+
+  renderTable();
+  document.getElementById('stat-filtered').textContent = filteredSlots.length;
+}
+
+function clearFilters() {
+  ['f-div','f-watch','f-days','f-rank','f-avail'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  applyFilters();
+}
+
+function updateStats() {
+  const avail = allSlots.filter(s => s.IsAvailable !== false).length;
+  document.getElementById('stat-total').textContent  = allSlots.length;
+  document.getElementById('stat-avail').textContent  = avail;
+  document.getElementById('stat-taken').textContent  = allSlots.length - avail;
+  document.getElementById('stat-filtered').textContent = filteredSlots.length;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('bid-tbody');
+  if (!filteredSlots.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🔍</div><h3>No slots match your filters</h3><p>Try clearing some filters to see more results.</p></div></td></tr>`;
+    return;
+  }
+
+  // Group by division + watch for section separators
+  let lastGroup = null;
+  const canBid  = canEmployeeBidNow();
+
+  tbody.innerHTML = filteredSlots.map(slot => {
+    const group = `${slot.field_3} — ${slot.field_5} Watch`;
+    let sep = '';
+    if (group !== lastGroup) {
+      sep = `<tr><td colspan="9" class="section-sep">${group}</td></tr>`;
+      lastGroup = group;
+    }
+
+    const rankChip    = `<span class="chip chip-${(slot.field_12||'po').toLowerCase()}">${slot.field_12}</span>`;
+    const statusChip  = slot.IsAvailable !== false
+      ? `<span class="chip chip-available">Available</span>`
+      : `<span class="chip chip-taken">Filled</span>`;
+
+    const filledBy = slot.IsAvailable ? '—' : `<span class="taken-by">${slot.FilledByName || '—'}</span>`;
+
+    let action = '—';
+    if (slot.IsAvailable !== false) {
+      if (currentUser.hasBid) {
+        action = '<span style="font-size:11px;color:var(--muted)">Already bid</span>';
+      } else if (!canBid) {
+        action = `<button class="btn-bid" disabled title="Not your bid window">Bid</button>`;
+      } else if (slot.field_12 !== currentUser.rank) {
+        action = `<button class="btn-bid" disabled title="Rank mismatch">Bid</button>`;
+      } else {
+        action = `<button class="btn-bid" onclick="openConfirmModal(${slot.Id})">Bid</button>`;
+      }
+    }
+
+    const shiftTime = formatShiftTime(slot.field_7, slot.field_8);
+
+    return `${sep}<tr>
+      <td><strong>${slot.field_3}</strong></td>
+      <td>${slot.field_5}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${shiftTime}</td>
+      <td><strong>${slot.field_10}</strong></td>
+      <td style="font-family:var(--font-mono);font-size:12px">${slot.field_11 || '—'}</td>
+      <td>${rankChip}</td>
+      <td>${statusChip}</td>
+      <td>${filledBy}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
+}
+
+function formatShiftTime(start, end) {
+  if (start === undefined || start === null) return '—';
+  const fmt = t => {
+    if (t === null || t === undefined) return '—';
+    // Handle decimal format from Excel (e.g. 0.333 = 8:00 AM)
+    if (typeof t === 'number' || (!isNaN(parseFloat(t)) && !String(t).includes(':'))) {
+      const totalMinutes = Math.round(parseFloat(t) * 24 * 60);
+      let h = Math.floor(totalMinutes / 60) % 24;
+      const m = totalMinutes % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${m.toString().padStart(2,'0')}${ampm}`;
+    }
+    // Handle string format HH:MM:SS
+    const parts = String(t).split(':');
+    let h = parseInt(parts[0]), m = parts[1] || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m}${ampm}`;
+  };
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BID WINDOW LOGIC
+// ═══════════════════════════════════════════════════════════════════════════
+function getBidWindowForUser() {
+  if (!bidConfig || !currentUser) return null;
+
+  // Each bidder's window starts at: RankStartDate + (seniorityOrder - 1) * 10 minutes
+  // The rank start dates come from BidConfig
+  let rankStart;
+  if (currentUser.rank === 'SGT') rankStart = bidConfig.SGTStartDate;
+  else if (currentUser.rank === 'SC') rankStart = bidConfig.SCStartDate;
+  else rankStart = bidConfig.POStartDate;
+
+  if (!rankStart) return null;
+
+  const base = new Date(rankStart);
+  // Add (seniorityOrder - 1) * 10 minutes, skipping over the lunch break
+  let minutesToAdd = (currentUser.seniorityOrder - 1) * 10;
+  let windowStart = addMinutesSkippingLunch(base, minutesToAdd, bidConfig);
+  let windowEnd   = new Date(windowStart.getTime() + 10 * 60 * 1000);
+  return { start: windowStart, end: windowEnd };
+}
+
+function addMinutesSkippingLunch(base, minutes, cfg) {
+  // Parse lunch window
+  const lunchStart = cfg.LunchStart ? parseTimeOnDate(cfg.LunchStart, base) : null;
+  const lunchEnd   = cfg.LunchEnd   ? parseTimeOnDate(cfg.LunchEnd,   base) : null;
+
+  let current = new Date(base.getTime());
+  let remaining = minutes;
+
+  while (remaining > 0) {
+    // If we're in lunch, jump to end of lunch
+    if (lunchStart && lunchEnd && current >= lunchStart && current < lunchEnd) {
+      current = new Date(lunchEnd.getTime());
+    }
+    // How many minutes until lunch (or until we're done)?
+    let minutesUntilLunch = lunchStart ? Math.floor((lunchStart - current) / 60000) : Infinity;
+    if (minutesUntilLunch < 0) minutesUntilLunch = Infinity; // lunch already passed
+
+    if (remaining <= minutesUntilLunch || minutesUntilLunch === Infinity) {
+      current = new Date(current.getTime() + remaining * 60000);
+      remaining = 0;
+    } else {
+      remaining -= minutesUntilLunch;
+      current = new Date(lunchEnd.getTime());
+    }
+  }
+  return current;
+}
+
+function parseTimeOnDate(timeStr, dateRef) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date(dateRef);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function canEmployeeBidNow() {
+  if (!currentUser || currentUser.hasBid) return false;
+  const window = getBidWindowForUser();
+  if (!window) return false;
+  const now = new Date();
+  // Employee can bid from their window start onward (no upper cutoff for self-service)
+  return now >= window.start;
+}
+
+function isLunchTime() {
+  if (!bidConfig || !bidConfig.LunchStart || !bidConfig.LunchEnd) return false;
+  const now = new Date();
+  const lunchStart = parseTimeOnDate(bidConfig.LunchStart, now);
+  const lunchEnd   = parseTimeOnDate(bidConfig.LunchEnd,   now);
+  return now >= lunchStart && now < lunchEnd;
+}
+
+function renderBidWindow() {
+  const window = getBidWindowForUser();
+  const card   = document.getElementById('window-card');
+  const label  = document.getElementById('window-label');
+  const time   = document.getElementById('window-time');
+  const desc   = document.getElementById('window-desc');
+
+  if (currentUser.hasBid) {
+    card.className = 'window-card';
+    label.className = 'window-label gray';
+    label.textContent = 'BID COMPLETE';
+    time.textContent = '✓ Done';
+    desc.textContent = 'You have successfully placed your bid for this cycle.';
+    document.getElementById('countdown').style.display = 'none';
+    return;
+  }
+
+  if (!window) {
+    time.textContent = 'TBD';
+    desc.textContent = 'Bid schedule has not been configured yet. Check back later.';
+    return;
+  }
+
+  const now = new Date();
+  const fmt = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (now < window.start) {
+    // Upcoming
+    card.className = 'window-card upcoming';
+    label.className = 'window-label amber';
+    label.textContent = 'YOUR BID WINDOW';
+    time.textContent = fmt(window.start);
+    desc.textContent = `Your bid time opens on ${window.start.toLocaleDateString()} at ${fmt(window.start)}.`;
+    startCountdown(window.start, 'Time until your window: ');
+  } else {
+    // Window open
+    card.className = 'window-card active';
+    label.className = 'window-label green';
+    label.textContent = '🟢 BID WINDOW OPEN';
+    time.textContent = fmt(window.start);
+    desc.textContent = `Your window opened at ${fmt(window.start)}. Select your shift below.`;
+    document.getElementById('countdown').style.display = 'none';
+
+    // Show active bid banner
+    const banner = document.getElementById('bid-banner');
+    banner.classList.add('visible');
+    document.getElementById('banner-close-time').textContent = 'the end of the bid cycle';
+  }
+
+  // Lunch banner
+  if (isLunchTime()) {
+    const lb = document.getElementById('lunch-banner');
+    lb.classList.add('visible');
+    const lunchEnd = parseTimeOnDate(bidConfig.LunchEnd, new Date());
+    document.getElementById('lunch-resume').textContent = lunchEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  }
+}
+
+function startCountdown(targetDate, prefix = '') {
+  if (countdownTimer) clearInterval(countdownTimer);
+  const el = document.getElementById('countdown');
+  el.style.display = 'block';
+
+  const update = () => {
+    const diff = targetDate - new Date();
+    if (diff <= 0) {
+      clearInterval(countdownTimer);
+      el.style.display = 'none';
+      renderBidWindow();
+      renderTable();
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = `${h ? h+'h ' : ''}${m}m ${s}s`;
+  };
+  update();
+  countdownTimer = setInterval(update, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SIDEBAR POPULATION
+// ═══════════════════════════════════════════════════════════════════════════
+function populateSidebar() {
+  document.getElementById('sb-name').textContent      = currentUser.name;
+  document.getElementById('sb-badge').textContent     = currentUser.badge;
+  document.getElementById('sb-rank').textContent      = currentUser.rank;
+  document.getElementById('sb-seniority').textContent = `#${currentUser.seniorityOrder}`;
+
+  document.getElementById('hdr-name').textContent = currentUser.name.split(' ')[0];
+  document.getElementById('hdr-rank').textContent = currentUser.rank;
+  document.getElementById('hdr-user').style.display = 'flex';
+  document.getElementById('btn-signout').style.display = 'block';
+
+  if (currentUser.hasBid) {
+    document.getElementById('sb-bid-status').textContent = '✓ Bid Placed';
+    document.getElementById('sb-bid-status').style.color = 'var(--green)';
+    showMySelection();
+  }
+}
+
+function showMySelection() {
+  if (!currentUser.selectedOppCode) return;
+  // Find the slot
+  const slot = allSlots.find(s => s.field_13 === currentUser.selectedOppCode);
+  if (!slot) return;
+  document.getElementById('sel-div').textContent     = slot.field_3;
+  document.getElementById('sel-watch').textContent   = slot.field_5;
+  document.getElementById('sel-days').textContent    = slot.field_10;
+  document.getElementById('sel-sector').textContent = slot.field_11;
+  document.getElementById('sel-shift').textContent   = formatShiftTime(slot.field_7, slot.field_8);
+  document.getElementById('selection-card').classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BID SUBMISSION
+// ═══════════════════════════════════════════════════════════════════════════
+function openConfirmModal(slotId) {
+  const slot = allSlots.find(s => s.Id === slotId);
+  if (!slot) return;
+  if (!slot.IsAvailable) {
+    alert('That slot was just filled. Please choose another.');
+    loadAllSlots();
+    return;
+  }
+  pendingSlot = slot;
+
+  document.getElementById('mc-div').textContent     = slot.field_3;
+  document.getElementById('mc-watch').textContent   = slot.field_5;
+  document.getElementById('mc-shift').textContent   = formatShiftTime(slot.field_7, slot.field_8);
+  document.getElementById('mc-days').textContent    = slot.field_10;
+  document.getElementById('mc-sector').textContent = slot.field_11;
+  document.getElementById('mc-oppcode').textContent = slot.field_13;
+
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('open');
+  pendingSlot = null;
+}
+
+async function submitBid() {
+  if (!pendingSlot || !currentUser) return;
+
+  const btn = document.querySelector('.btn-confirm');
+  btn.textContent = 'Submitting...';
+  btn.disabled = true;
+
+  try {
+    const now = new Date().toISOString();
+
+    // Step 1: Mark employee as having bid FIRST
+    // This way if step 2 fails, we can roll back cleanly
+    const rosterUpdate = {
+      HasBid:          true,
+      SelectedSlotID:  parseInt(pendingSlot.Id) || 0,
+      SelectedOppCode: String(pendingSlot.field_13 || ''),
+      BidTimestamp:    new Date(now).toISOString(),
+    };
+    await spPatch(CONFIG.LIST_ROSTER, currentUser.spId, rosterUpdate);
+
+    // Step 2: Mark slot as taken
+    // If this fails, roll back the employee record
+    try {
+      await spPatch(CONFIG.LIST_SLOTS, pendingSlot.Id, {
+        IsAvailable:   false,
+        FilledByName:  String(currentUser.name || ''),
+        FilledByBadge: String(currentUser.badge || ''),
+        FilledByEmail: String(currentUser.email || ''),
+        FilledAt:      now,
+      });
+    } catch(slotErr) {
+      // Roll back employee record so they can try again
+      try {
+        await spPatch(CONFIG.LIST_ROSTER, currentUser.spId, {
+          HasBid:          false,
+          SelectedSlotID:  0,
+          SelectedOppCode: '',
+        });
+      } catch(rollbackErr) {
+        console.error('Rollback failed:', rollbackErr);
+      }
+      throw new Error('Could not reserve slot: ' + slotErr.message);
+    }
+
+    // 3. Write audit log - non-blocking so a failure doesn't block the bid
+    try {
+      const auditPayload = {
+        Title:        `BID: ${currentUser.badge}`,
+        EmployeeName: String(currentUser.name || ''),
+        BadgeNumber:  String(currentUser.badge || ''),
+        Rank:         String(currentUser.rank || ''),
+        OppCode:      String(pendingSlot.field_13 || ''),
+        DIV:          String(pendingSlot.field_3 || ''),
+        Watch:        String(pendingSlot.field_5 || ''),
+        DaysOff:      String(pendingSlot.field_10 || ''),
+        Section:      String(pendingSlot.field_11 || ''),
+        Action:       'EMPLOYEE_BID',
+        ProctorEmail: 'self',
+      };
+      // BidTimestamp is Date/Time — must be valid ISO string or omitted
+      try { auditPayload.BidTimestamp = new Date().toISOString(); } catch(e) {}
+      await spPost(CONFIG.LIST_AUDITLOG, auditPayload);
+    } catch(auditErr) {
+      console.warn('Audit log write failed (non-critical):', auditErr.message, auditErr);
+    }
+
+    // 4. Trigger Power Automate flow for confirmation email
+    // (The flow is triggered by the HasBid field change on BidRoster list)
+
+    // Update local state - do this BEFORE closing modal
+    currentUser.hasBid           = true;
+    currentUser.selectedOppCode  = pendingSlot.field_13;
+    currentUser.selectedSlotId   = pendingSlot.Id;
+    // Update sidebar immediately to reflect bid placed
+    document.getElementById('sb-bid-status').textContent = '✓ Bid Placed';
+    document.getElementById('sb-bid-status').style.color = 'var(--green)';
+
+    // Update slot in local array
+    const idx = allSlots.findIndex(s => s.Id === pendingSlot.Id);
+    if (idx >= 0) {
+      allSlots[idx].IsAvailable   = false;
+      allSlots[idx].FilledByName  = currentUser.name;
+      allSlots[idx].FilledByBadge = currentUser.badge;
+    }
+
+    const confirmedSlot = pendingSlot;
+    closeConfirmModal();
+    pendingSlot = null;
+    showSuccessModal(confirmedSlot);
+
+    populateSidebar();
+    applyFilters();
+    updateStats();
+
+  } catch (e) {
+    btn.textContent = 'Confirm Bid';
+    btn.disabled = false;
+    // Check if the bid actually went through despite the error
+    if (currentUser.hasBid) {
+      // Bid succeeded but something else failed - show success anyway
+      closeConfirmModal();
+      showSuccessModal(pendingSlot);
+      pendingSlot = null;
+      populateSidebar();
+      applyFilters();
+      updateStats();
+    } else {
+      alert('Error submitting bid: ' + e.message + '\n\nPlease call the bid proctor at ' + CONFIG.PROCTOR_PHONE);
+    }
+  }
+}
+
+function showSuccessModal(slot) {
+  const detail = document.getElementById('success-detail');
+  detail.innerHTML = `
+    <div class="modal-detail-row"><span class="modal-detail-label">Division</span><span class="modal-detail-value">${slot.field_3}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Watch</span><span class="modal-detail-value">${slot.field_5}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Shift</span><span class="modal-detail-value">${formatShiftTime(slot.field_7, slot.field_8)}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Days Off</span><span class="modal-detail-value">${slot.field_10}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Sector</span><span class="modal-detail-value">${slot.field_11}</span></div>
+  `;
+  document.getElementById('success-modal').classList.add('open');
+}
+
+function closeSuccessModal() {
+  document.getElementById('success-modal').classList.remove('open');
+  showMySelection();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTO REFRESH
+// ═══════════════════════════════════════════════════════════════════════════
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(async () => {
+    await loadAllSlots();
+    renderBidWindow();
+  }, CONFIG.REFRESH_INTERVAL);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN TRANSITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  populateSidebar();
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('login-screen').innerHTML = `
+    <div class="login-card">
+      <div class="login-shield">⚠️</div>
+      <h2>Access Issue</h2>
+      <p>${msg}</p>
+      <button class="ms-login-btn" onclick="location.reload()">Try Again</button>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STARTUP
+// ═══════════════════════════════════════════════════════════════════════════
+// Load MSAL dynamically
+(function loadMSAL() {
+  const script = document.createElement('script');
+  script.src = 'https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js';
+  script.onload = initMSAL;
+  script.onerror = () => {
+    // Offline / dev mode — show demo mode
+    showDemoMode();
+  };
+  document.head.appendChild(script);
+})();
+
+// ── DEMO MODE (for testing without SharePoint) ────────────────────────────
+function showDemoMode() {
+  // Simulate a logged-in user for UI preview
+  currentUser = {
+    spId: 1, name: 'Smith, John A.', badge: '12345', rank: 'SGT',
+    email: 'jsmith@dpd.gov', seniorityOrder: 3, hasBid: false,
+    selectedSlotId: null, selectedOppCode: null,
+  };
+  bidConfig = {
+    ActiveRank: 'SGT',
+    SGTStartDate: new Date(Date.now() - 15 * 60000).toISOString(), // started 15min ago
+    LunchStart: '12:00', LunchEnd: '13:00',
+  };
+  // Generate demo slots from known data structure
+  allSlots = generateDemoSlots();
+  showApp();
+  populateFilterOptions();
+  applyFilters();
+  updateStats();
+  renderBidWindow();
+  document.getElementById('last-updated').textContent = 'Demo mode — not connected to SharePoint';
+}
+
+function generateDemoSlots() {
+  const divs = ['CBD','CE','NC','NE','NW','SC','SE','SW'];
+  const watches = ['Alpha','Bravo','Charlie'];
+  const daysOff = ['SM','MT','TW','WT','TF','FS','SS'];
+  const ranks = ['SGT','SC','PO'];
+  const slots = [];
+  let id = 1;
+  divs.forEach(div => {
+    watches.forEach(watch => {
+      daysOff.forEach(days => {
+        ranks.forEach(rank => {
+          const count = rank === 'PO' ? 3 : 1;
+          for (let i = 0; i < count; i++) {
+            const taken = Math.random() < 0.35;
+            slots.push({
+              Id: id++, DIV: div, Watch: watch,
+              Shift: watch, ShiftStartTime: watch==='Alpha'?'21:00:00':watch==='Bravo'?'06:00:00':'14:00:00',
+              ShiftEndTime:  watch==='Alpha'?'07:00:00':watch==='Bravo'?'16:00:00':'00:00:00',
+              DaysOffCode: days, Section: `${watch[0]}${['110','120','130','140','150','160','170'][Math.floor(Math.random()*7)]}`,
+              Rank: rank, OppCode: `${id-1}${div}${rank}${watch}${days}`,
+              IsAvailable: !taken,
+              FilledByName: taken ? 'Jones, M.' : null,
+              FilledAt: taken ? new Date().toISOString() : null,
+              Skill: null,
+            });
+          }
+        });
+      });
+    });
+  });
+  return slots;
+}
+</script>
+
+<!-- Load MSAL separately if hosting on SharePoint page -->
+<!-- <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script> -->
+
+</body>
+</html>

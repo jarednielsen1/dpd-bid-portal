@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bid Proctor Admin — Patrol Bid System</title>
+<style>
+  :root {
+    --navy: #0F1F3D; --navy-mid: #162548; --navy-light: #1E3260;
+    --gold: #C8A84B; --gold-light: #E2C46E;
+    --white: #F4F6FA; --muted: #7A8FAD;
+    --green: #27AE60; --green-dim: #1a7a44;
+    --red: #C0392B; --red-dim: #922b21;
+    --amber: #E67E22; --card-bg: #0D1A35; --border: #1F3460;
+    --radius: 6px; --font-mono: 'Courier New', monospace;
+    --font-ui: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: linear-gradient(160deg, #0F1F3D 0%, #0A1628 100%); color: var(--white); font-family: var(--font-ui); min-height: 100vh; }
+
+  header {
+    background: var(--navy-mid); border-bottom: 2px solid var(--red);
+    padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+    height: 60px; position: sticky; top: 0; z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .admin-icon { width: 36px; height: 36px; background: var(--red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-title { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; color: var(--red); }
+  .header-sub   { font-size: 11px; color: var(--muted); }
+  .proctor-badge { background: var(--red); color: white; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 10px; letter-spacing: 0.05em; }
+
+  .admin-layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 60px); }
+
+  /* Sidebar nav */
+  .admin-nav { background: var(--navy-mid); border-right: 1px solid var(--border); padding: 16px 0; }
+  .nav-section { padding: 8px 16px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    font-size: 13px; cursor: pointer; color: var(--muted); transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--navy-light); color: var(--white); }
+  .nav-item.active { background: var(--navy-light); color: var(--white); border-left-color: var(--red); }
+  .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+  /* Main content */
+  .admin-content { padding: 24px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .page-sub   { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  /* Cards */
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+  /* Forms */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 11px; color: var(--muted); font-weight: 600; }
+  input, select, textarea {
+    background: var(--navy); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--white); padding: 9px 11px; font-size: 13px; font-family: var(--font-ui); width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Buttons */
+  .btn { padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-primary { background: var(--gold); color: var(--navy); }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-ghost   { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-green   { background: var(--green); color: var(--navy); }
+  .btn-sm      { padding: 5px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .stat-num   { font-size: 26px; font-weight: 700; font-family: var(--font-mono); color: var(--gold); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--navy-light); color: var(--muted); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; padding: 9px 12px; text-align: left;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--navy-light); }
+  tbody td { padding: 9px 12px; vertical-align: middle; }
+
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .chip-avail  { background: #0d2218; color: var(--green); border: 1px solid var(--green-dim); }
+  .chip-taken  { background: #1f0a0a; color: var(--red);   border: 1px solid var(--red-dim); }
+  .chip-sgt    { background: #1a1208; color: var(--gold);  border: 1px solid #6b4a10; }
+  .chip-sc     { background: #0a1220; color: #6ab4ff;      border: 1px solid #1a3a6a; }
+  .chip-po     { background: #0a1a10; color: #6affa0;      border: 1px solid #1a5a30; }
+
+  /* Warning box */
+  .warning-box {
+    background: #1a1208; border: 1px solid var(--amber); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 14px; font-size: 13px; color: var(--amber);
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .error-box { background: #1f0a0a; border-color: var(--red); color: var(--red); }
+  .success-box { background: #0d2218; border-color: var(--green); color: var(--green); }
+
+  /* Upload area */
+  .upload-area {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px;
+    text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 12px;
+  }
+  .upload-area:hover { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+  .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-text { font-size: 13px; color: var(--muted); }
+  .upload-text strong { color: var(--white); }
+
+  /* Bid override search */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-bar input { flex: 1; }
+
+  /* Rank mismatch alert */
+  .rank-alert {
+    background: #1a1208; border: 1px solid var(--amber); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 14px; display: none;
+  }
+  .rank-alert.visible { display: block; }
+  .rank-alert h4 { color: var(--amber); font-size: 14px; margin-bottom: 6px; }
+  .rank-alert p  { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .rank-alert label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; cursor: pointer; color: var(--white); line-height: 1.4; }
+  .rank-alert label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; }
+
+  /* Progress bar */
+  .progress-wrap { background: var(--navy); border-radius: 100px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .progress-bar  { background: var(--gold); height: 100%; border-radius: 100px; transition: width 0.5s ease; }
+
+  /* Current bidder highlight */
+  .current-bidder-card {
+    background: #0d2218; border: 1px solid var(--green); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 14px;
+  }
+  .current-bidder-card h4 { color: var(--green); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .bidder-name { font-size: 18px; font-weight: 700; }
+  .bidder-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .bidder-timer { font-size: 28px; font-weight: 700; font-family: var(--font-mono); color: var(--green); float: right; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 300; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card-bg); border: 1px solid var(--gold); border-radius: var(--radius); padding: 28px; max-width: 480px; width: 90%; }
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-btns .btn { flex: 1; padding: 11px; }
+
+  @media (max-width: 800px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-right: none; border-bottom: 1px solid var(--border); }
+    .nav-item { padding: 7px 12px; border-left: none; border-bottom: 3px solid transparent; border-radius: var(--radius); }
+    .nav-item.active { border-left-color: transparent; border-bottom-color: var(--red); }
+    .nav-section { display: none; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="admin-icon">⚙️</div>
+    <div>
+      <div class="header-title">BID PROCTOR ADMIN</div>
+      <div class="header-sub">Patrol Bid System · Restricted Access</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="proctor-badge">PROCTOR ACCESS</span>
+    <span id="admin-user" style="font-size:12px;color:var(--muted)">—</span>
+    <button onclick="proctorSignOut()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:var(--radius);font-size:12px;cursor:pointer">Sign Out</button>
+  </div>
+</header>
+
+<div class="admin-layout">
+
+  <!-- NAV -->
+  <nav class="admin-nav">
+    <div class="nav-section">Dashboard</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span>Live Overview</div>
+    <div class="nav-item" onclick="showPage('queue')"><span class="nav-icon">📋</span>Bid Queue</div>
+
+    <div class="nav-section">Proctor Tools</div>
+    <div class="nav-item" onclick="showPage('override')"><span class="nav-icon">🎯</span>Place / Override Bid</div>
+    <div class="nav-item" onclick="showPage('removebid')"><span class="nav-icon">↩️</span>Remove a Bid</div>
+    <div class="nav-item" onclick="showPage('auditlog')"><span class="nav-icon">📜</span>Audit Log</div>
+
+    <div class="nav-section">Setup</div>
+    <div class="nav-item" onclick="showPage('upload-roster')"><span class="nav-icon">👥</span>Upload Roster</div>
+    <div class="nav-item" onclick="showPage('upload-slots')"><span class="nav-icon">📁</span>Upload Bid Slots</div>
+    <div class="nav-item" onclick="showPage('config')"><span class="nav-icon">⚙️</span>Bid Configuration</div>
+    <div class="nav-item" onclick="showPage('schedule')"><span class="nav-icon">📅</span>Bid Schedule</div>
+    <div class="nav-item" onclick="showPage('holidays')"><span class="nav-icon">🏛️</span>Holidays</div>
+    <div class="nav-item" onclick="showPage('export')"><span class="nav-icon">⬇️</span>Export Results</div>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="admin-content">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Live Overview</div>
+      <div class="page-sub">Real-time bid progress across all ranks</div>
+
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-num" id="d-total">—</div><div class="stat-label">Total Slots</div></div>
+        <div class="stat"><div class="stat-num" id="d-filled" style="color:var(--green)">—</div><div class="stat-label">Filled</div></div>
+        <div class="stat"><div class="stat-num" id="d-avail" style="color:var(--amber)">—</div><div class="stat-label">Available</div></div>
+        <div class="stat"><div class="stat-num" id="d-pct" style="color:var(--gold)">—</div><div class="stat-label">% Complete</div></div>
+      </div>
+
+      <!-- Per-rank progress -->
+      <div class="card">
+        <div class="card-title">Progress by Rank</div>
+        <div id="rank-progress">
+          <div style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
+              <span>Sergeant (SGT)</span><span id="sgt-prog-txt" style="color:var(--muted)">—</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-bar" id="sgt-bar" style="width:0%"></div></div>
+          </div>
+          <div style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
+              <span>Senior Corporal (SC)</span><span id="sc-prog-txt" style="color:var(--muted)">—</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-bar" id="sc-bar" style="width:0%"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
+              <span>Police Officer (PO)</span><span id="po-prog-txt" style="color:var(--muted)">—</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-bar" id="po-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current bidder -->
+      <div class="card">
+        <div class="card-title">Current Bidder</div>
+        <div class="current-bidder-card" id="current-bidder-card">
+          <h4>🟢 Now Bidding</h4>
+          <span class="bidder-timer" id="current-timer">—</span>
+          <div class="bidder-name" id="current-name">—</div>
+          <div class="bidder-meta" id="current-meta">—</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Next up: <strong id="next-bidder">—</strong></div>
+      </div>
+    </div>
+
+    <!-- ── BID QUEUE ───────────────────────────────────────────── -->
+    <div class="page" id="page-queue">
+      <div class="page-title">Bid Queue</div>
+      <div class="page-sub">Full seniority order with bid status for the active rank</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <select id="queue-rank" onchange="loadQueue()" style="width:200px">
+          <option value="SGT">Sergeant</option>
+          <option value="SC">Senior Corporal</option>
+          <option value="PO">Police Officer</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadQueue()">↻ Refresh</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Name</th><th>Badge</th><th>Rank</th>
+              <th>Bid Time</th><th>Status</th><th>Selection</th>
+            </tr>
+          </thead>
+          <tbody id="queue-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Select a rank and load the queue</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PLACE / OVERRIDE BID ───────────────────────────────── -->
+    <div class="page" id="page-override">
+      <div class="page-title">Place / Override Bid</div>
+      <div class="page-sub">Use this to bid on behalf of an employee (phone-in bid) or to correct a bid with proctor authorization.</div>
+
+      <!-- Step 1: Find employee -->
+      <div class="card">
+        <div class="card-title">Step 1 — Find Employee</div>
+        <div class="search-bar">
+          <input type="text" id="override-search" placeholder="Enter badge number or last name..." />
+          <button class="btn btn-primary" onclick="searchEmployee()">Search</button>
+        </div>
+        <div id="override-employee-result" style="display:none">
+          <div class="success-box warning-box" id="override-emp-box"></div>
+        </div>
+      </div>
+
+      <!-- Step 2: Find slot -->
+      <div class="card" id="override-step2" style="display:none">
+        <div class="card-title">Step 2 — Select Slot</div>
+
+        <!-- Rank mismatch warning -->
+        <div class="rank-alert" id="rank-alert">
+          <h4>⚠️ Rank Mismatch Warning</h4>
+          <p>The selected employee's rank does not match the selected slot's rank. This is allowed with proctor authorization (e.g., for a newly promoted employee not yet updated in the system). Proceed only if you are certain this override is appropriate.</p>
+          <label>
+            <input type="checkbox" id="override-confirm-rank"> I acknowledge this rank mismatch and authorize this override
+          </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Division</label>
+            <select id="ov-div" onchange="filterOverrideSlots()"><option value="">All</option></select>
+          </div>
+          <div class="form-group">
+            <label>Watch</label>
+            <select id="ov-watch" onchange="filterOverrideSlots()">
+              <option value="">All</option>
+              <option value="Alpha">Alpha</option>
+              <option value="Bravo">Bravo</option>
+              <option value="Charlie">Charlie</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Days Off</label>
+            <select id="ov-days" onchange="filterOverrideSlots()"><option value="">All</option></select>
+          </div>
+          <div class="form-group">
+            <label>Show</label>
+            <select id="ov-avail" onchange="filterOverrideSlots()">
+              <option value="available">Available Only</option>
+              <option value="">All Slots</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr><th>DIV</th><th>Watch</th><th>Days Off</th><th>Sector</th><th>Rank</th><th>Status</th><th>Select</th></tr>
+            </thead>
+            <tbody id="override-slots-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Step 3: Confirm -->
+      <div class="card" id="override-step3" style="display:none">
+        <div class="card-title">Step 3 — Confirm Override Bid</div>
+        <div id="override-summary" style="font-size:13px;margin-bottom:16px;line-height:1.8"></div>
+        <div class="warning-box">⚠️ This will be logged in the audit trail with your proctor credentials, the employee name, slot selected, and timestamp.</div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-danger" onclick="submitOverrideBid()">Submit Override Bid</button>
+          <button class="btn btn-ghost" onclick="cancelOverride()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REMOVE A BID ───────────────────────────────────────── -->
+    <div class="page" id="page-removebid">
+      <div class="page-title">Remove a Bid</div>
+      <div class="page-sub">Use only for legitimate errors. All removals are logged with proctor credentials and reason.</div>
+
+      <div class="card">
+        <div class="warning-box error-box">⚠️ Removing a bid is irreversible without placing a new one. The slot will be returned to available status. The employee will need to call the bid line to re-bid.</div>
+
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Find Employee</label>
+          <div class="search-bar">
+            <input type="text" id="remove-search" placeholder="Badge number or last name..." />
+            <button class="btn btn-primary" onclick="searchForRemoval()">Search</button>
+          </div>
+        </div>
+
+        <div id="remove-result" style="display:none">
+          <div class="card" style="background:var(--navy);margin-bottom:12px">
+            <div id="remove-emp-info"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Reason for Removal (required)</label>
+            <textarea id="remove-reason" placeholder="Enter the reason this bid is being removed..."></textarea>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-danger" onclick="submitRemoval()">Remove Bid</button>
+            <button class="btn btn-ghost" onclick="cancelRemoval()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AUDIT LOG ──────────────────────────────────────────── -->
+    <div class="page" id="page-auditlog">
+      <div class="page-title">Audit Log</div>
+      <div class="page-sub">Complete record of all bid actions</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <select id="audit-filter" onchange="loadAuditLog()" style="width:200px">
+          <option value="">All Actions</option>
+          <option value="EMPLOYEE_BID">Employee Bids</option>
+          <option value="PROCTOR_BID">Proctor Bids</option>
+          <option value="BID_REMOVED">Removals</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAuditLog()">↻ Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportAudit()">⬇ Export CSV</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Action</th><th>Employee</th><th>Badge</th><th>Rank</th><th>Slot</th><th>DIV</th><th>Watch</th><th>Days Off</th><th>By</th></tr>
+          </thead>
+          <tbody id="audit-tbody">
+            <tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Loading audit log...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── UPLOAD ROSTER ──────────────────────────────────────── -->
+    <div class="page" id="page-upload-roster">
+      <div class="page-title">Upload Employee Roster</div>
+      <div class="page-sub">Upload the seniority roster CSV or Excel file to populate the bidder list. This replaces any existing roster data.</div>
+
+      <div class="card">
+        <div class="warning-box">⚠️ Uploading a new roster will overwrite the existing roster. Do this before the bid begins. Required columns: <strong>seniority, firstname, lastname, badge, rank, email</strong> · Ranks can be spelled out (e.g. "Police Sergeant") · Missing emails are allowed — those employees must call the bid line.</div>
+
+        <div class="card-title" style="margin-top:12px">Expected Format</div>
+        <div style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--font-mono);font-size:12px;margin-bottom:16px;overflow-x:auto">
+          Name,BadgeNumber,Rank,Email,SeniorityOrder<br>
+          Smith John A,12345,SGT,jsmith@city.gov,1<br>
+          Jones Mary B,67890,SGT,mjones@city.gov,2<br>
+          ...
+        </div>
+
+        <div class="upload-area" onclick="document.getElementById('roster-file').click()" id="roster-drop">
+          <div class="upload-icon">📋</div>
+          <div class="upload-text"><strong>Click to upload roster file</strong><br>CSV or XLSX accepted</div>
+        </div>
+        <input type="file" id="roster-file" accept=".csv,.xlsx" style="display:none" onchange="handleRosterFile(this)">
+
+        <div id="roster-preview" style="display:none">
+          <div class="card-title">Preview (first 5 rows)</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Badge</th><th>Rank</th><th>Email</th><th>Seniority #</th></tr></thead>
+              <tbody id="roster-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="uploadRoster()">Upload to SharePoint</button>
+            <button class="btn btn-ghost" onclick="cancelRosterUpload()">Cancel</button>
+          </div>
+        </div>
+
+        <div id="roster-upload-result" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ── UPLOAD BID SLOTS ───────────────────────────────────── -->
+    <div class="page" id="page-upload-slots">
+      <div class="page-title">Upload Bid Slots</div>
+      <div class="page-sub">Upload the bid opportunity table (the Excel file from the workforce management system). This defines every available slot employees can bid on.</div>
+
+      <div class="card">
+        <div class="warning-box">⚠️ Uploading new slots will replace the existing slot table. Do this before the bid begins. The file should match the format of the <strong>2026_Patrol_Bid_Table.xlsx</strong> file.</div>
+
+        <div class="card-title" style="margin-top:12px">Expected Columns</div>
+        <div style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--font-mono);font-size:12px;margin-bottom:16px;color:var(--muted)">
+          opportunity_ID · bureau_ID · org_ID · DIV · class_ID · watch · Shift<br>
+          shiftstarttime · shiftendtime · daysoff · Days_Off · section · title · oppcode · Skill
+        </div>
+
+        <div class="upload-area" onclick="document.getElementById('slots-file').click()">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text"><strong>Click to upload bid slots file</strong><br>XLSX accepted</div>
+        </div>
+        <input type="file" id="slots-file" accept=".xlsx,.csv" style="display:none" onchange="handleSlotsFile(this)">
+
+        <div id="slots-preview" style="display:none">
+          <div class="card-title">Preview (first 5 rows)</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>DIV</th><th>Watch</th><th>Days Off</th><th>Sector</th><th>Rank</th><th>OppCode</th></tr></thead>
+              <tbody id="slots-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div id="slots-count" style="font-size:13px;color:var(--muted);margin:10px 0"></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="uploadSlots()">Upload to SharePoint</button>
+            <button class="btn btn-ghost" onclick="cancelSlotsUpload()">Cancel</button>
+          </div>
+        </div>
+
+        <div id="slots-upload-result" style="display:none"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Initialize Slot Availability</div>
+        <div class="warning-box" style="margin-bottom:12px">Use this after importing slots from Excel to set all slots to Available. This is required before the bid can start.</div>
+        <div id="init-slots-result" style="display:none;margin-bottom:12px"></div>
+        <button class="btn btn-green" onclick="initializeSlotAvailability()">Set All Slots to Available</button>
+      </div>
+    </div>
+
+    <!-- ── BID CONFIGURATION ──────────────────────────────────── -->
+    <div class="page" id="page-config">
+      <div class="page-title">Bid Configuration</div>
+      <div class="page-sub">Set start dates, times, and lunch break for each rank's bid window.</div>
+
+      <div class="card">
+        <div class="card-title">Bid Year & Active Settings</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bid Year</label>
+            <input type="number" id="cfg-year" value="2026">
+          </div>
+          <div class="form-group">
+            <label>Active Rank (currently bidding)</label>
+            <select id="cfg-active-rank">
+              <option value="">None (bid not started)</option>
+              <option value="SGT">Sergeant</option>
+              <option value="SC">Senior Corporal</option>
+              <option value="PO">Police Officer</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sergeant Bid Schedule</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Bid Start (date & time)</label>
+            <input type="datetime-local" id="cfg-sgt-start">
+          </div>
+          <div class="form-group">
+            <label>Daily End Time</label>
+            <input type="time" id="cfg-sgt-end">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Senior Corporal Bid Schedule</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Bid Start (date & time)</label>
+            <input type="datetime-local" id="cfg-sc-start">
+          </div>
+          <div class="form-group">
+            <label>Daily End Time</label>
+            <input type="time" id="cfg-sc-end">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Police Officer Bid Schedule</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Bid Start (date & time)</label>
+            <input type="datetime-local" id="cfg-po-start">
+          </div>
+          <div class="form-group">
+            <label>Daily End Time</label>
+            <input type="time" id="cfg-po-end">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Daily Lunch Break (applies to all ranks)</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lunch Start</label>
+            <input type="time" id="cfg-lunch-start" value="12:00">
+          </div>
+          <div class="form-group">
+            <label>Lunch End (bid line resumes)</label>
+            <input type="time" id="cfg-lunch-end" value="13:00">
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">During lunch, employees can still self-bid online. The bid proctor line is on hold.</div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+        <button class="btn btn-ghost" onclick="loadConfig()">↻ Reload from SharePoint</button>
+      </div>
+      <div id="config-result" style="margin-top:12px;display:none"></div>
+    </div>
+
+    <!-- ── BID SCHEDULE ──────────────────────────────────────── -->
+    <div class="page" id="page-schedule">
+      <div class="page-title">Bid Schedule</div>
+      <div class="page-sub">Auto-calculate all bid times from a single start input. Schedule is stored in SharePoint and visible to employees.</div>
+
+      <!-- Schedule Inputs -->
+      <div class="card">
+        <div class="card-title">Schedule Inputs</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>SGT First Bid — Date</label>
+            <input type="date" id="sched-sgt-date">
+          </div>
+          <div class="form-group">
+            <label>SGT First Bid — Time</label>
+            <input type="time" id="sched-sgt-time" value="08:00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Daily Start Time</label>
+            <input type="time" id="sched-daily-start" value="08:00">
+          </div>
+          <div class="form-group">
+            <label>Daily End Time</label>
+            <input type="time" id="sched-daily-end" value="17:00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lunch Start</label>
+            <input type="time" id="sched-lunch-start" value="12:00">
+          </div>
+          <div class="form-group">
+            <label>Lunch End</label>
+            <input type="time" id="sched-lunch-end" value="13:00">
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted)" id="sched-slots-per-day">
+          Slots per day will calculate when you enter times above.
+        </div>
+      </div>
+
+      <!-- Day Overrides -->
+      <div class="card">
+        <div class="card-title">Day Overrides <span style="font-size:11px;color:var(--muted);font-weight:400">— Set a custom end time for a specific day</span></div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="flex:1">
+            <label>Date</label>
+            <input type="date" id="override-date">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Custom End Time</label>
+            <input type="time" id="override-end-time">
+          </div>
+          <div class="form-group" style="flex:0;align-self:flex-end">
+            <button class="btn btn-primary" onclick="addDayOverride()">Add Override</button>
+          </div>
+        </div>
+        <div id="overrides-list" style="font-size:13px;color:var(--muted)">No overrides set.</div>
+      </div>
+
+      <!-- Calculate Button -->
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="calculateSchedule()">Calculate Schedule</button>
+        <button class="btn btn-ghost" onclick="loadScheduleFromSharePoint()">↻ Load Saved Schedule</button>
+      </div>
+
+      <!-- Schedule Summary -->
+      <div class="card" id="sched-summary-card" style="display:none">
+        <div class="card-title">Schedule Summary</div>
+        <div id="sched-summary" style="font-size:13px;line-height:2"></div>
+        <div style="margin-top:14px;display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="saveSchedule()">Save to SharePoint</button>
+          <button class="btn btn-ghost" onclick="toggleSchedulePublished()">Toggle Published</button>
+        </div>
+        <div id="sched-published-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      </div>
+
+      <!-- Full Schedule Table -->
+      <div class="card" id="sched-table-card" style="display:none">
+        <div class="card-title">Full Schedule</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+          <select id="sched-filter-rank" onchange="renderScheduleTable()" style="width:200px">
+            <option value="">All Ranks</option>
+            <option value="SGT">Sergeant</option>
+            <option value="SC">Senior Corporal</option>
+            <option value="PO">Police Officer</option>
+          </select>
+          <select id="sched-filter-date" onchange="renderScheduleTable()" style="width:200px">
+            <option value="">All Dates</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="exportScheduleCSV()">⬇ Export CSV</button>
+        </div>
+        <div class="tbl-wrap" style="max-height:500px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Badge</th><th>Rank</th><th>Bid Date</th><th>Bid Time</th><th>Status</th></tr>
+            </thead>
+            <tbody id="sched-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HOLIDAYS ────────────────────────────────────────────── -->
+    <div class="page" id="page-holidays">
+      <div class="page-title">City Holidays</div>
+      <div class="page-sub">Manage holidays that will be skipped during bid scheduling. Built-in holidays are pre-loaded. Add custom holidays for future years.</div>
+
+      <div class="card">
+        <div class="card-title">Built-in Recurring Holidays</div>
+        <div style="font-size:13px;color:var(--muted);line-height:2">
+          These are automatically calculated each year and cannot be removed:<br>
+          New Year's Day (Jan 1) · MLK Day (3rd Mon Jan) · President's Day (3rd Mon Feb) ·
+          Memorial Day (last Mon May) · Juneteenth (Jun 19) · Independence Day (Jul 4) ·
+          Labor Day (1st Mon Sep) · Indigenous Peoples Day (2nd Mon Oct) ·
+          Veterans Day (Nov 11) · Thanksgiving (4th Thu Nov) ·
+          Day after Thanksgiving (Fri after Thanksgiving) · Christmas (Dec 25)
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Custom Holidays <span style="font-size:11px;color:var(--muted);font-weight:400">— Add one-time holidays or future year corrections</span></div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="flex:1">
+            <label>Date</label>
+            <input type="date" id="custom-holiday-date">
+          </div>
+          <div class="form-group" style="flex:2">
+            <label>Description</label>
+            <input type="text" id="custom-holiday-name" placeholder="e.g. City Council Closure Day">
+          </div>
+          <div class="form-group" style="flex:0;align-self:flex-end">
+            <button class="btn btn-primary" onclick="addCustomHoliday()">Add</button>
+          </div>
+        </div>
+        <div id="custom-holidays-list" style="font-size:13px;color:var(--muted)">No custom holidays added.</div>
+        <div style="margin-top:12px;display:flex;gap:10px">
+          <button class="btn btn-ghost btn-sm" onclick="saveHolidays()">Save Holidays to SharePoint</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadHolidays()">↻ Load from SharePoint</button>
+        </div>
+        <div id="holidays-result" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <!-- Preview holidays for a given year -->
+      <div class="card">
+        <div class="card-title">Preview Holidays for Year</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end">
+          <div class="form-group">
+            <label>Year</label>
+            <input type="number" id="preview-year" value="2026" style="width:120px">
+          </div>
+          <button class="btn btn-ghost" onclick="previewHolidays()">Preview</button>
+        </div>
+        <div id="holiday-preview-list" style="font-size:13px;line-height:2;color:var(--muted)"></div>
+      </div>
+    </div>
+
+    <!-- ── EXPORT ─────────────────────────────────────────────── -->
+    <div class="page" id="page-export">
+      <div class="page-title">Export Results</div>
+      <div class="page-sub">Download bid results in various formats</div>
+
+      <div class="card">
+        <div class="card-title">Export Options</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy);border-radius:var(--radius)">
+            <div>
+              <div style="font-size:13px;font-weight:600">Complete Bid Results</div>
+              <div style="font-size:12px;color:var(--muted)">All slots with employee assignments — formatted like the original bid table</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="exportResults('full')">Export CSV</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy);border-radius:var(--radius)">
+            <div>
+              <div style="font-size:13px;font-weight:600">Available Slots Only</div>
+              <div style="font-size:12px;color:var(--muted)">All slots that were not filled</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="exportResults('available')">Export CSV</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy);border-radius:var(--radius)">
+            <div>
+              <div style="font-size:13px;font-weight:600">Employee Assignments</div>
+              <div style="font-size:12px;color:var(--muted)">One row per employee showing their selected shift</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="exportResults('assignments')">Export CSV</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy);border-radius:var(--radius)">
+            <div>
+              <div style="font-size:13px;font-weight:600">Full Audit Log</div>
+              <div style="font-size:12px;color:var(--muted)">Complete action log with timestamps</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="exportAudit()">Export CSV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Remove Bid Confirm Modal -->
+<div class="modal-overlay" id="remove-confirm-modal">
+  <div class="modal">
+    <h3>⚠️ Confirm Bid Removal</h3>
+    <div id="remove-modal-body" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6"></div>
+    <div class="warning-box error-box" style="font-size:12px">This action will be permanently logged with your credentials and the reason provided.</div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('remove-confirm-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmRemoval()">Remove Bid</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG — same as employee portal, keep in sync
+// ══════════════════════════════════════════════════════════════
+const CONFIG = {
+  SP_SITE_URL:  'https://dallastxgov.sharepoint.com/sites/PatrolBid',
+  LIST_SLOTS:   'BidSlots',
+  LIST_ROSTER:  'BidRoster',
+  LIST_CONFIG:  'BidConfig',
+  LIST_AUDITLOG:'BidAuditLog',
+  CLIENT_ID:    '0d384d2a-9a9e-46f6-a195-ad63f9e94f06',
+  TENANT_ID:    '2935709e-c10c-4809-a302-852d369f8700',
+};
+
+let accessToken   = null;
+let proctorUser   = null;
+let allSlots      = [];
+let allRoster     = [];
+let pendingRosterData = null;
+let pendingSlotsData  = null;
+let selectedEmployee  = null;
+let selectedOverrideSlot = null;
+let removeTarget  = null;
+
+// ── NAV ──────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  // Lazy load
+  if (id === 'dashboard')    loadDashboard();
+  if (id === 'queue')        loadQueue();
+  if (id === 'auditlog')     loadAuditLog();
+  if (id === 'config')       loadConfig();
+  if (id === 'override')     initOverride();
+  if (id === 'schedule')     { loadScheduleFromSharePoint(); loadHolidays(); }
+  if (id === 'holidays')     { loadHolidays(); previewHolidays(); }
+}
+
+// ── SHAREPOINT HELPERS (same as employee portal) ─────────────
+async function spGet(list, filter='', select='') {
+  let url = `${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=5000`;
+  if (filter) url += `&$filter=${encodeURIComponent(filter)}`;
+  if (select) url += `&$select=${encodeURIComponent(select)}`;
+  const spToken = await getSharePointToken();
+  const r = await fetch(url, { headers: { 'Authorization': `Bearer ${spToken}`, 'Accept': 'application/json;odata=nometadata' }});
+  if (!r.ok) throw new Error(`SP GET ${list}: ${r.status}`);
+  return (await r.json()).value;
+}
+
+async function spDigest() {
+  const spToken = await getSharePointToken();
+  const r = await fetch(`${CONFIG.SP_SITE_URL}/_api/contextinfo`, { method:'POST', headers:{ 'Authorization':`Bearer ${spToken}`, 'Accept':'application/json;odata=nometadata' }});
+  return (await r.json()).FormDigestValue;
+}
+
+async function spPatch(list, id, body) {
+  const d = await spDigest();
+  const spToken = await getSharePointToken();
+  const r = await fetch(`${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`,
+    { method:'PATCH', headers:{ 'Authorization':`Bearer ${spToken}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json;odata=nometadata', 'X-RequestDigest':d, 'IF-MATCH':'*', 'X-HTTP-Method':'MERGE' }, body:JSON.stringify(body) });
+  if (!r.ok && r.status !== 204) throw new Error(`SP PATCH: ${r.status}`);
+}
+
+async function spPost(list, body) {
+  const d = await spDigest();
+  const spToken = await getSharePointToken();
+  const r = await fetch(`${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`,
+    { method:'POST', headers:{ 'Authorization':`Bearer ${spToken}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json;odata=nometadata', 'X-RequestDigest':d }, body:JSON.stringify(body) });
+  if (!r.ok) {
+    let errMsg = `SP POST ${list}: ${r.status}`;
+    try { const errBody = await r.json(); errMsg += ' — ' + (errBody['odata.error']?.message?.value || JSON.stringify(errBody)); } catch(e) {}
+    throw new Error(errMsg);
+  }
+  return await r.json();
+}
+
+async function spDelete(list, id) {
+  const d = await spDigest();
+  const spToken2 = await getSharePointToken();
+  await fetch(`${CONFIG.SP_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`,
+    { method:'POST', headers:{ 'Authorization':`Bearer ${spToken2}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json;odata=nometadata', 'X-RequestDigest':d, 'IF-MATCH':'*', 'X-HTTP-Method':'DELETE' }});
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    // Load slots and config in parallel
+    const [slots, cfgItems, rosterItems] = await Promise.all([
+      spGet(CONFIG.LIST_SLOTS, '', 'Id,IsAvailable,field_12'),
+      spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', ''),
+      spGet(CONFIG.LIST_ROSTER, '', 'Id,Title,BadgeNumber,Rank,SeniorityOrder,HasBid'),
+    ]);
+
+    allSlots = slots;
+    const cfg = cfgItems[0] || null;
+
+    const total  = allSlots.length;
+    const filled = allSlots.filter(s => s.IsAvailable === false).length;
+    const avail  = allSlots.filter(s => s.IsAvailable !== false).length;
+    const pct    = total ? Math.round(filled/total*100) : 0;
+
+    document.getElementById('d-total').textContent  = total;
+    document.getElementById('d-filled').textContent = filled;
+    document.getElementById('d-avail').textContent  = avail;
+    document.getElementById('d-pct').textContent    = pct + '%';
+
+    // Per-rank progress
+    ['SGT','SC','PO'].forEach(rank => {
+      const rSlots  = allSlots.filter(s => s.field_12 === rank);
+      const rFilled = rSlots.filter(s => s.IsAvailable === false).length;
+      const rTotal  = rSlots.length;
+      const rPct    = rTotal ? Math.round(rFilled/rTotal*100) : 0;
+      const key     = rank.toLowerCase();
+      document.getElementById(`${key}-prog-txt`).textContent = `${rFilled} / ${rTotal} (${rPct}%)`;
+      document.getElementById(`${key}-bar`).style.width = rPct + '%';
+    });
+
+    // Current bidder calculation
+    if (cfg && cfg.ActiveRank) {
+      const activeRank = cfg.ActiveRank;
+      const rankStart = activeRank === 'SGT' ? cfg.SGTStartDate
+                      : activeRank === 'SC'  ? cfg.SCStartDate
+                      : cfg.POStartDate;
+
+      if (rankStart) {
+        const now = new Date();
+        let currentBidder = null;
+        let nextBidder = null;
+
+        // Try to use the calculated schedule JSON first (most accurate)
+        if (cfg.ScheduleJSON) {
+          try {
+            const schedData = JSON.parse(cfg.ScheduleJSON);
+            const schedEntries = (schedData.schedule || []).filter(s => s.rank === activeRank);
+
+            // Build a map of badge -> roster item for quick lookup
+            const rosterMap = {};
+            rosterItems.forEach(e => { rosterMap[String(e.BadgeNumber)] = e; });
+
+            for (const entry of schedEntries) {
+              const entryTime = new Date(entry.timeISO || (entry.date + 'T' + entry.time));
+              const rosterEmp = rosterItems.find(e => 
+                String(e.BadgeNumber) === String(entry.badge) && e.Rank === activeRank
+              );
+              const hasBid = rosterEmp ? rosterEmp.HasBid : entry.hasBid;
+
+              if (now >= entryTime) {
+                if (!hasBid) currentBidder = { 
+                  Title: entry.name, BadgeNumber: entry.badge, 
+                  Rank: entry.rank, SeniorityOrder: entry.seniorityOrder,
+                  windowStart: entryTime 
+                };
+              } else {
+                if (!hasBid && !nextBidder) nextBidder = {
+                  Title: entry.name, BadgeNumber: entry.badge,
+                  Rank: entry.rank, SeniorityOrder: entry.seniorityOrder,
+                  windowStart: entryTime
+                };
+              }
+            }
+          } catch(schedErr) {
+            console.warn('Could not parse schedule JSON:', schedErr);
+          }
+        }
+
+        // Fall back to simple calculation if no schedule JSON
+        if (!currentBidder && !nextBidder) {
+          const baseTime = new Date(rankStart);
+          const lunchStart = cfg.LunchStart ? parseTimeOnDate(cfg.LunchStart, baseTime) : null;
+          const lunchEnd   = cfg.LunchEnd   ? parseTimeOnDate(cfg.LunchEnd,   baseTime) : null;
+          const allRankMembers = rosterItems
+            .filter(e => e.Rank === activeRank)
+            .sort((a, b) => a.SeniorityOrder - b.SeniorityOrder);
+
+          for (const emp of allRankMembers) {
+            const senPos = emp.SeniorityOrder - 1;
+            const windowStart = addMinsSkipLunch(baseTime, senPos * 10, lunchStart, lunchEnd);
+            if (now >= windowStart) {
+              if (!emp.HasBid) currentBidder = { ...emp, windowStart };
+            } else {
+              if (!emp.HasBid && !nextBidder) nextBidder = { ...emp, windowStart };
+            }
+          }
+        }
+
+        // Show current bidder
+        const card = document.getElementById('current-bidder-card');
+        const nameEl = document.getElementById('current-name');
+        const metaEl = document.getElementById('current-meta');
+        const nextEl = document.getElementById('next-bidder');
+
+        if (currentBidder) {
+          nameEl.textContent = currentBidder.Title || '—';
+          metaEl.textContent = `Badge ${currentBidder.BadgeNumber} · ${currentBidder.Rank} · Seniority #${currentBidder.SeniorityOrder} · Window: ${currentBidder.windowStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+          nextEl.textContent = nextBidder ? `${nextBidder.Title} (Badge ${nextBidder.BadgeNumber}) at ${nextBidder.windowStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}` : 'No more bidders';
+        } else {
+          nameEl.textContent = unbid.length > 0 ? `Waiting for first window (${unbid[0].Title})` : 'All bids complete';
+          metaEl.textContent = unbid.length > 0 ? `First bid window: ${baseTime.toLocaleString()}` : '';
+          nextEl.textContent = '—';
+        }
+      }
+    }
+  } catch(e) { console.error('Dashboard load error:', e); }
+}
+
+function parseTimeToday(timeStr) {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function parseTimeOnDate(timeStr, dateRef) {
+  if (!timeStr) return null;
+  // Handle "HH:MM" or "HH:MM AM/PM" format
+  let h, m;
+  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+    const parts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!parts) return null;
+    h = parseInt(parts[1]);
+    m = parseInt(parts[2]);
+    if (parts[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (parts[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  } else {
+    [h, m] = timeStr.split(':').map(Number);
+  }
+  const d = new Date(dateRef);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function addMinsSkipLunch(base, minutes, lunchStart, lunchEnd) {
+  let current = new Date(base.getTime());
+  let remaining = minutes;
+  while (remaining > 0) {
+    if (lunchStart && lunchEnd && current >= lunchStart && current < lunchEnd) {
+      current = new Date(lunchEnd.getTime());
+    }
+    let minsToLunch = lunchStart ? Math.max(0, Math.floor((lunchStart - current) / 60000)) : Infinity;
+    if (minsToLunch === 0) minsToLunch = Infinity;
+    if (remaining <= minsToLunch || minsToLunch === Infinity) {
+      current = new Date(current.getTime() + remaining * 60000);
+      remaining = 0;
+    } else {
+      remaining -= minsToLunch;
+      current = new Date(lunchEnd.getTime());
+    }
+  }
+  return current;
+}
+
+// ── BID QUEUE ─────────────────────────────────────────────────
+async function loadQueue() {
+  const rank  = document.getElementById('queue-rank').value;
+  const tbody = document.getElementById('queue-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+  try {
+    const roster = await spGet(CONFIG.LIST_ROSTER, `Rank eq '${rank}'`, 'Id,Title,BadgeNumber,Rank,SeniorityOrder,HasBid,SelectedOppCode,BidTimestamp');
+    roster.sort((a,b) => a.SeniorityOrder - b.SeniorityOrder);
+    tbody.innerHTML = roster.map(emp => `
+      <tr>
+        <td style="font-family:var(--font-mono);color:var(--muted)">${emp.SeniorityOrder}</td>
+        <td><strong>${emp.Title}</strong></td>
+        <td style="font-family:var(--font-mono)">${emp.BadgeNumber}</td>
+        <td><span class="chip chip-${emp.Rank.toLowerCase()}">${emp.Rank}</span></td>
+        <td style="font-size:12px;color:var(--muted)">Calculated from config</td>
+        <td>${emp.HasBid ? '<span class="chip chip-avail">✓ Bid</span>' : '<span style="color:var(--muted);font-size:12px">Pending</span>'}</td>
+        <td style="font-family:var(--font-mono);font-size:11px">${emp.SelectedOppCode || '—'}</td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--red)">${e.message}</td></tr>`;
+  }
+}
+
+// ── OVERRIDE BID ──────────────────────────────────────────────
+async function initOverride() {
+  try {
+    allSlots = await spGet(CONFIG.LIST_SLOTS, '', '');
+    const divs = [...new Set(allSlots.map(s => s.field_3).filter(Boolean))].sort();
+    const days = [...new Set(allSlots.map(s => s.field_10).filter(Boolean))].sort();
+    const d = document.getElementById('ov-div');
+    d.innerHTML = '<option value="">All</option>' + divs.map(v=>`<option value="${v}">${v}</option>`).join('');
+    const dd = document.getElementById('ov-days');
+    dd.innerHTML = '<option value="">All</option>' + days.map(v=>`<option value="${v}">${v}</option>`).join('');
+    filterOverrideSlots();
+  } catch(e) { console.error(e); }
+}
+
+async function searchEmployee() {
+  const q = document.getElementById('override-search').value.trim();
+  if (!q) return;
+  try {
+    const isNum = /^\d+$/.test(q);
+    const filter = isNum ? `BadgeNumber eq '${q}'` : `substringof('${q}',Title)`;
+    const results = await spGet(CONFIG.LIST_ROSTER, filter, 'Id,Title,BadgeNumber,Rank,SeniorityOrder,HasBid,SelectedOppCode');
+    if (!results.length) {
+      document.getElementById('override-employee-result').style.display = 'block';
+      document.getElementById('override-emp-box').className = 'warning-box error-box';
+      document.getElementById('override-emp-box').textContent = 'No employee found with that badge number or name.';
+      return;
+    }
+    const emp = results[0];
+    selectedEmployee = emp;
+    document.getElementById('override-employee-result').style.display = 'block';
+    document.getElementById('override-emp-box').className = 'warning-box success-box';
+    document.getElementById('override-emp-box').innerHTML =
+      `✓ Found: <strong>${emp.Title}</strong> · Badge ${emp.BadgeNumber} · ${emp.Rank} · Seniority #${emp.SeniorityOrder}` +
+      (emp.HasBid ? ` · <span style="color:var(--amber)">⚠️ Already bid: ${emp.SelectedOppCode}</span>` : '');
+    document.getElementById('override-step2').style.display = 'block';
+    filterOverrideSlots();
+  } catch(e) { alert('Search error: ' + e.message); }
+}
+
+function filterOverrideSlots() {
+  const fDiv   = document.getElementById('ov-div').value;
+  const fWatch = document.getElementById('ov-watch').value;
+  const fDays  = document.getElementById('ov-days').value;
+  const fAvail = document.getElementById('ov-avail').value;
+
+  // Watch filter values: Alpha=1, Bravo=2, Charlie=3
+  const watchNum = fWatch === 'Alpha' ? '1' : fWatch === 'Bravo' ? '2' : fWatch === 'Charlie' ? '3' : fWatch;
+
+  const filtered = allSlots.filter(s => {
+    if (fDiv   && s.field_3 !== fDiv) return false;
+    if (watchNum && String(s.field_5) !== String(watchNum)) return false;
+    if (fDays  && s.field_10 !== fDays) return false;
+    if (fAvail === 'available' && s.IsAvailable === false) return false;
+    return true;
+  });
+
+  const watchName = n => n == 1 ? 'Alpha' : n == 2 ? 'Bravo' : n == 3 ? 'Charlie' : n;
+  const rankCls = r => (r||'po').toLowerCase();
+
+  const tbody = document.getElementById('override-slots-tbody');
+  tbody.innerHTML = filtered.slice(0, 150).map(slot => `
+    <tr>
+      <td><strong>${slot.field_3 || '—'}</strong></td>
+      <td>${watchName(slot.field_5)}</td>
+      <td>${slot.field_10 || '—'}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${slot.field_11 || '—'}</td>
+      <td><span class="chip chip-${rankCls(slot.field_12)}">${slot.field_12 || '—'}</span></td>
+      <td>${slot.IsAvailable !== false ? '<span class="chip chip-avail">Available</span>' : '<span class="chip chip-taken">Taken</span>'}</td>
+      <td><button class="btn btn-sm ${slot.IsAvailable !== false ? 'btn-primary' : 'btn-ghost'}" onclick="selectOverrideSlot(${slot.Id})">Select</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No slots match filters</td></tr>';
+}
+
+function selectOverrideSlot(slotId) {
+  selectedOverrideSlot = allSlots.find(s => s.Id === slotId);
+  if (!selectedOverrideSlot || !selectedEmployee) return;
+
+  const rankMismatch = selectedEmployee.Rank !== selectedOverrideSlot.field_12;
+  const alert = document.getElementById('rank-alert');
+  alert.className = 'rank-alert' + (rankMismatch ? ' visible' : '');
+
+  document.getElementById('override-step3').style.display = 'block';
+  document.getElementById('override-summary').innerHTML = `
+    <strong>Employee:</strong> ${selectedEmployee.Title} (Badge: ${selectedEmployee.BadgeNumber}, ${selectedEmployee.Rank})<br>
+    <strong>Slot:</strong> ${selectedOverrideSlot.field_3} · ${selectedOverrideSlot.field_5} · ${selectedOverrideSlot.field_10} · ${selectedOverrideSlot.field_11}<br>
+    <strong>Slot Rank:</strong> ${selectedOverrideSlot.field_12}<br>
+    <strong>OppCode:</strong> <span style="font-family:var(--font-mono);font-size:12px">${selectedOverrideSlot.field_13}</span>
+  `;
+}
+
+async function submitOverrideBid() {
+  if (!selectedEmployee || !selectedOverrideSlot) return;
+  const rankMismatch = selectedEmployee.Rank !== selectedOverrideSlot.field_12;
+  if (rankMismatch && !document.getElementById('override-confirm-rank').checked) {
+    alert('You must acknowledge the rank mismatch to proceed.');
+    return;
+  }
+  try {
+    const now = new Date().toISOString();
+    await spPatch(CONFIG.LIST_SLOTS, selectedOverrideSlot.Id, {
+      IsAvailable: false, FilledByName: selectedEmployee.Title,
+      FilledByBadge: selectedEmployee.BadgeNumber, FilledAt: now,
+    });
+    await spPatch(CONFIG.LIST_ROSTER, selectedEmployee.Id, {
+      HasBid: true, SelectedSlotID: selectedOverrideSlot.Id,
+      SelectedOppCode: selectedOverrideSlot.field_13, BidTimestamp: now,
+    });
+    // Build audit log - text fields only first
+    const auditEntry = {
+      Title:        `PROCTOR BID: ${selectedEmployee.BadgeNumber}`,
+      EmployeeName: String(selectedEmployee.Title || ''),
+      BadgeNumber:  String(selectedEmployee.BadgeNumber || ''),
+      Rank:         String(selectedEmployee.Rank || ''),
+      OppCode:      String(selectedOverrideSlot.field_13 || ''),
+      DIV:          String(selectedOverrideSlot.field_3 || ''),
+      Watch:        String(selectedOverrideSlot.field_5 || ''),
+      DaysOff:      String(selectedOverrideSlot.field_10 || ''),
+      Sector:      String(selectedOverrideSlot.field_11 || ''),
+      Action:       'PROCTOR_BID',
+      ProctorEmail: String(proctorUser || 'unknown'),
+    };
+    try {
+      await spPost(CONFIG.LIST_AUDITLOG, auditEntry);
+    } catch(auditErr) {
+      console.warn('Audit log write failed (non-critical):', auditErr.message);
+      // Bid was already placed successfully - audit failure is non-critical
+    }
+    alert(`✅ Bid placed successfully for ${selectedEmployee.Title} → ${selectedOverrideSlot.field_13}`);
+    cancelOverride();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function cancelOverride() {
+  selectedEmployee = null; selectedOverrideSlot = null;
+  document.getElementById('override-search').value = '';
+  document.getElementById('override-employee-result').style.display = 'none';
+  document.getElementById('override-step2').style.display = 'none';
+  document.getElementById('override-step3').style.display = 'none';
+  document.getElementById('override-confirm-rank').checked = false;
+}
+
+// ── REMOVE BID ────────────────────────────────────────────────
+async function searchForRemoval() {
+  const q = document.getElementById('remove-search').value.trim();
+  if (!q) return;
+  try {
+    const isNum = /^\d+$/.test(q);
+    const filter = isNum ? `BadgeNumber eq '${q}'` : `substringof('${q}',Title)`;
+    const results = await spGet(CONFIG.LIST_ROSTER, filter + ` and HasBid eq 1`, 'Id,Title,BadgeNumber,Rank,SelectedOppCode,BidTimestamp');
+    if (!results.length) {
+      document.getElementById('remove-result').style.display = 'block';
+      document.getElementById('remove-emp-info').innerHTML = '<span style="color:var(--red)">No bidding employee found with that search.</span>';
+      return;
+    }
+    removeTarget = results[0];
+    document.getElementById('remove-result').style.display = 'block';
+    document.getElementById('remove-emp-info').innerHTML = `
+      <div style="margin-bottom:8px"><strong>${removeTarget.Title}</strong></div>
+      <div style="font-size:12px;color:var(--muted)">Badge: ${removeTarget.BadgeNumber} · ${removeTarget.Rank}</div>
+      <div style="font-size:12px;color:var(--muted)">Current selection: <strong style="color:var(--white)">${removeTarget.SelectedOppCode}</strong></div>
+    `;
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function submitRemoval() {
+  const reason = document.getElementById('remove-reason').value.trim();
+  if (!reason) { alert('A reason is required for bid removal.'); return; }
+  document.getElementById('remove-modal-body').innerHTML =
+    `This will remove the bid for <strong>${removeTarget.Title}</strong> (${removeTarget.SelectedOppCode}) and return the slot to available.<br><br>Reason: <em>${reason}</em>`;
+  document.getElementById('remove-confirm-modal').classList.add('open');
+}
+
+async function confirmRemoval() {
+  const reason = document.getElementById('remove-reason').value.trim();
+  try {
+    // Find the slot by OppCode to get its Id
+    const slots = await spGet(CONFIG.LIST_SLOTS, `field_13 eq '${removeTarget.SelectedOppCode}'`, 'Id');
+    if (slots.length) {
+      await spPatch(CONFIG.LIST_SLOTS, slots[0].Id, { IsAvailable: true, FilledByName: null, FilledByBadge: null, FilledAt: null });
+    }
+    await spPatch(CONFIG.LIST_ROSTER, removeTarget.Id, { HasBid: false, SelectedSlotID: null, SelectedOppCode: null, BidTimestamp: null });
+    await spPost(CONFIG.LIST_AUDITLOG, {
+      Title: `BID REMOVED: ${removeTarget.BadgeNumber}`,
+      EmployeeName: removeTarget.Title, BadgeNumber: removeTarget.BadgeNumber,
+      Rank: removeTarget.Rank, OppCode: removeTarget.SelectedOppCode,
+      BidTimestamp: new Date().toISOString(), Action: 'BID_REMOVED',
+      Reason: reason, ProctorEmail: proctorUser || 'unknown',
+    });
+    document.getElementById('remove-confirm-modal').classList.remove('open');
+    alert(`✅ Bid removed for ${removeTarget.Title}. Slot returned to available.`);
+    cancelRemoval();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function cancelRemoval() {
+  removeTarget = null;
+  document.getElementById('remove-search').value = '';
+  document.getElementById('remove-result').style.display = 'none';
+  document.getElementById('remove-reason').value = '';
+}
+
+// ── AUDIT LOG ─────────────────────────────────────────────────
+async function loadAuditLog() {
+  const filter = document.getElementById('audit-filter').value;
+  const tbody  = document.getElementById('audit-tbody');
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+  try {
+    const logs = await spGet(CONFIG.LIST_AUDITLOG,
+      filter ? `Action eq '${filter}'` : '',
+      ''
+    );
+    logs.sort((a,b) => new Date(b.BidTimestamp) - new Date(a.BidTimestamp));
+    tbody.innerHTML = logs.map(log => {
+      const ts  = log.BidTimestamp ? new Date(log.BidTimestamp).toLocaleString() : '—';
+      const act = log.Action === 'EMPLOYEE_BID' ? '<span style="color:var(--green)">Employee</span>'
+                : log.Action === 'PROCTOR_BID'  ? '<span style="color:var(--amber)">Proctor</span>'
+                : '<span style="color:var(--red)">Removed</span>';
+      return `<tr>
+        <td style="font-size:11px;color:var(--muted)">${ts}</td>
+        <td>${act}</td>
+        <td>${log.EmployeeName || '—'}</td>
+        <td style="font-family:var(--font-mono)">${log.BadgeNumber || '—'}</td>
+        <td><span class="chip chip-${(log.Rank||'po').toLowerCase()}">${log.Rank || '—'}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px">${log.OppCode || '—'}</td>
+        <td>${log.DIV || '—'}</td>
+        <td>${log.Watch || '—'}</td>
+        <td>${log.DaysOff || '—'}</td>
+        <td style="font-size:11px;color:var(--muted)">${log.ProctorEmail || 'self'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">No records found</td></tr>';
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);text-align:center;padding:24px">${e.message}</td></tr>`;
+  }
+}
+
+// ── CONFIG ────────────────────────────────────────────────────
+function toLocalDatetimeInput(isoStr) {
+  if (!isoStr) return '';
+  // SharePoint returns ISO UTC string - convert to local for datetime-local input
+  const d = new Date(isoStr);
+  if (isNaN(d)) return isoStr.slice(0,16); // fallback if not valid ISO
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toLocalTimeInput(timeStr) {
+  if (!timeStr) return '';
+  // Handle various formats SP might return
+  if (timeStr.includes('T')) {
+    // Full ISO - extract time part in local
+    const d = new Date(timeStr);
+    if (!isNaN(d)) {
+      const pad = n => String(n).padStart(2,'0');
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  }
+  // Already in HH:MM format
+  return timeStr.slice(0,5);
+}
+
+async function loadConfig() {
+  try {
+    const items = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1');
+    if (!items.length) return;
+    const cfg = items[0];
+    document.getElementById('cfg-year').value         = cfg.BidYear || 2026;
+    document.getElementById('cfg-active-rank').value  = cfg.ActiveRank || '';
+    document.getElementById('cfg-sgt-start').value    = toLocalDatetimeInput(cfg.SGTStartDate);
+    document.getElementById('cfg-sgt-end').value      = toLocalTimeInput(cfg.SGTEndTime);
+    document.getElementById('cfg-sc-start').value     = toLocalDatetimeInput(cfg.SCStartDate);
+    document.getElementById('cfg-sc-end').value       = toLocalTimeInput(cfg.SCEndTime);
+    document.getElementById('cfg-po-start').value     = toLocalDatetimeInput(cfg.POStartDate);
+    document.getElementById('cfg-po-end').value       = toLocalTimeInput(cfg.POEndTime);
+    document.getElementById('cfg-lunch-start').value  = toLocalTimeInput(cfg.LunchStart);
+    document.getElementById('cfg-lunch-end').value    = toLocalTimeInput(cfg.LunchEnd);
+  } catch(e) { console.error('Config load error:', e); }
+}
+
+async function saveConfig() {
+  // Convert datetime-local value to ISO string in local time (not UTC)
+  function localInputToISO(val) {
+    if (!val) return null;
+    // datetime-local gives "YYYY-MM-DDTHH:MM" - treat as local time
+    const d = new Date(val);
+    return isNaN(d) ? val : d.toISOString();
+  }
+
+  const body = {
+    Title:       'ActiveBidConfig',
+    BidYear:     parseInt(document.getElementById('cfg-year').value),
+    ActiveRank:  document.getElementById('cfg-active-rank').value,
+    SGTStartDate:localInputToISO(document.getElementById('cfg-sgt-start').value),
+    SGTEndTime:  document.getElementById('cfg-sgt-end').value,
+    SCStartDate: localInputToISO(document.getElementById('cfg-sc-start').value),
+    SCEndTime:   document.getElementById('cfg-sc-end').value,
+    POStartDate: localInputToISO(document.getElementById('cfg-po-start').value),
+    POEndTime:   document.getElementById('cfg-po-end').value,
+    LunchStart:  document.getElementById('cfg-lunch-start').value,
+    LunchEnd:    document.getElementById('cfg-lunch-end').value,
+    IsActive:    1,
+  };
+  try {
+    // Check if config exists
+    const existing = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', 'Id');
+    if (existing.length) {
+      await spPatch(CONFIG.LIST_CONFIG, existing[0].Id, body);
+    } else {
+      await spPost(CONFIG.LIST_CONFIG, body);
+    }
+    const r = document.getElementById('config-result');
+    r.style.display = 'block';
+    r.innerHTML = '<div class="warning-box success-box">✅ Configuration saved successfully.</div>';
+    setTimeout(() => { r.style.display = 'none'; }, 3000);
+  } catch(e) {
+    const r = document.getElementById('config-result');
+    r.style.display = 'block';
+    r.innerHTML = `<div class="warning-box error-box">Error saving: ${e.message}</div>`;
+  }
+}
+
+// ── FILE UPLOAD HELPERS ───────────────────────────────────────
+function normalizeRank(raw) {
+  if (!raw) return '';
+  const r = raw.trim().toLowerCase();
+  if (r.includes('sergeant'))       return 'SGT';
+  if (r.includes('senior corporal')) return 'SC';
+  if (r.includes('corporal'))        return 'SC';
+  if (r.includes('officer'))         return 'PO';
+  // Already in short form
+  if (r === 'sgt') return 'SGT';
+  if (r === 'sc')  return 'SC';
+  if (r === 'po')  return 'PO';
+  return raw.trim();
+}
+
+function parseCSVLine(line) {
+  // Handle quoted fields with commas inside
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') {
+      inQuotes = !inQuotes;
+    } else if (line[i] === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += line[i];
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function handleRosterFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(l => l.trim());
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/"/g,'').trim());
+
+    // Map column indices
+    const idx = {
+      seniority:  headers.indexOf('seniority'),
+      firstname:  headers.indexOf('firstname'),
+      lastname:   headers.indexOf('lastname'),
+      badge:      headers.indexOf('badge'),
+      rank:       headers.indexOf('rank'),
+      email:      headers.indexOf('email'),
+    };
+
+    pendingRosterData = lines.slice(1).filter(l => l.trim()).map(l => {
+      const vals = parseCSVLine(l).map(v => v.replace(/"/g,'').trim());
+      const firstName = idx.firstname >= 0 ? vals[idx.firstname] || '' : '';
+      const lastName  = idx.lastname  >= 0 ? vals[idx.lastname]  || '' : '';
+      const fullName  = lastName && firstName ? `${lastName}, ${firstName}` : (lastName || firstName);
+      const rawRank   = idx.rank >= 0 ? vals[idx.rank] || '' : '';
+      const email     = idx.email >= 0 ? vals[idx.email] || '' : '';
+      return {
+        Name:          fullName,
+        BadgeNumber:   idx.badge     >= 0 ? vals[idx.badge]     || '' : '',
+        Rank:          normalizeRank(rawRank),
+        RankRaw:       rawRank,
+        Email:         email,
+        SeniorityOrder: idx.seniority >= 0 ? parseInt(vals[idx.seniority]) || 0 : 0,
+        HasEmail:      email.length > 0,
+      };
+    }).filter(r => r.Name || r.BadgeNumber); // skip blank rows
+
+    // Show preview
+    const tbody = document.getElementById('roster-preview-tbody');
+    tbody.innerHTML = pendingRosterData.slice(0, 5).map(r => `
+      <tr>
+        <td>${r.Name}</td>
+        <td>${r.BadgeNumber}</td>
+        <td>${r.Rank} <span style="color:var(--muted);font-size:11px">(${r.RankRaw})</span></td>
+        <td style="font-size:11px">${r.Email || '<span style="color:var(--amber)">No email</span>'}</td>
+        <td>${r.SeniorityOrder}</td>
+      </tr>`).join('');
+
+    const noEmail = pendingRosterData.filter(r => !r.HasEmail).length;
+    const countNote = `${pendingRosterData.length} employees found${noEmail > 0 ? ` · <span style="color:var(--amber)">⚠️ ${noEmail} missing email (proctor-only bidding)</span>` : ''}`;
+    document.getElementById('roster-preview').style.display = 'block';
+    document.getElementById('slots-count') && (document.getElementById('slots-count').innerHTML = countNote);
+
+    // Show count under preview
+    const existingCount = document.getElementById('roster-count');
+    if (existingCount) existingCount.innerHTML = countNote;
+    else {
+      const div = document.createElement('div');
+      div.id = 'roster-count';
+      div.style.cssText = 'font-size:13px;color:var(--muted);margin:10px 0';
+      div.innerHTML = countNote;
+      document.getElementById('roster-preview').prepend(div);
+    }
+
+    document.getElementById('roster-upload-result').style.display = 'none';
+  };
+  reader.readAsText(file);
+}
+
+async function uploadRoster() {
+  if (!pendingRosterData) return;
+  const btn = document.querySelector('#page-upload-roster .btn-primary');
+  btn.textContent = `Uploading 0/${pendingRosterData.length}...`;
+  btn.disabled = true;
+  let count = 0;
+  let errors = 0;
+  try {
+    for (const row of pendingRosterData) {
+      try {
+        await spPost(CONFIG.LIST_ROSTER, {
+          Title:          row.Name,
+          BadgeNumber:    row.BadgeNumber,
+          Rank:           row.Rank,
+          Email:          row.Email || '',
+          SeniorityOrder: row.SeniorityOrder,
+          HasBid:         false,
+        });
+        count++;
+        if (count % 25 === 0) btn.textContent = `Uploading ${count}/${pendingRosterData.length}...`;
+      } catch(rowErr) {
+        errors++;
+        console.warn(`Failed row ${count}: ${row.Name}`, rowErr);
+      }
+    }
+    const resultEl = document.getElementById('roster-upload-result');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = errors === 0
+      ? `<div class="warning-box success-box">✅ ${count} employees uploaded successfully.</div>`
+      : `<div class="warning-box" style="border-color:var(--amber);color:var(--amber)">⚠️ Uploaded ${count} employees. ${errors} rows had errors — check console for details.</div>`;
+    document.getElementById('roster-preview').style.display = 'none';
+    pendingRosterData = null;
+  } catch(e) {
+    document.getElementById('roster-upload-result').style.display = 'block';
+    document.getElementById('roster-upload-result').innerHTML =
+      `<div class="warning-box error-box">Error after ${count} rows: ${e.message}</div>`;
+  }
+  btn.textContent = 'Upload to SharePoint';
+  btn.disabled = false;
+}
+
+function cancelRosterUpload() {
+  pendingRosterData = null;
+  document.getElementById('roster-preview').style.display = 'none';
+  document.getElementById('roster-file').value = '';
+}
+
+function handleSlotsFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(l=>l.trim());
+    const headers = lines[0].split('\t').map(h=>h.trim());
+    pendingSlotsData = lines.slice(1).filter(l=>l.trim()).map(l => {
+      const vals = l.split('\t').map(v=>v.trim());
+      const obj = {};
+      headers.forEach((h,i) => obj[h] = vals[i]||'');
+      return obj;
+    });
+    const tbody = document.getElementById('slots-preview-tbody');
+    tbody.innerHTML = pendingSlotsData.slice(0,5).map(r =>
+      `<tr><td>${r.opportunity_ID}</td><td>${r.DIV}</td><td>${r.Shift||r.watch}</td><td>${r.Days_Off}</td><td>${r.section}</td><td>${r.title}</td><td style="font-family:var(--font-mono);font-size:11px">${r.oppcode}</td></tr>`
+    ).join('');
+    document.getElementById('slots-count').textContent = `${pendingSlotsData.length} slots ready to upload`;
+    document.getElementById('slots-preview').style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+async function uploadSlots() {
+  if (!pendingSlotsData) return;
+  const btn = document.querySelector('#page-upload-slots .btn-primary');
+  btn.textContent = `Uploading 0/${pendingSlotsData.length}...`; btn.disabled = true;
+  let count = 0;
+  try {
+    for (const row of pendingSlotsData) {
+      await spPost(CONFIG.LIST_SLOTS, {
+        Title:          row.oppcode,
+        OpportunityID:  parseInt(row.opportunity_ID)||0,
+        DIV:            row.DIV,
+        Watch:          row.Shift,
+        ShiftStartTime: row.shiftstarttime,
+        ShiftEndTime:   row.shiftendtime,
+        DaysOff:        row.daysoff,
+        DaysOffCode:    row.Days_Off,
+        Sector:        row.section,
+        Rank:           row.title,
+        OppCode:        row.oppcode,
+        IsAvailable:    true,
+        Skill:          row.Skill||null,
+      });
+      count++;
+      if (count % 10 === 0) btn.textContent = `Uploading ${count}/${pendingSlotsData.length}...`;
+    }
+    document.getElementById('slots-upload-result').style.display = 'block';
+    document.getElementById('slots-upload-result').innerHTML =
+      `<div class="warning-box success-box">✅ ${count} bid slots uploaded successfully.</div>`;
+    document.getElementById('slots-preview').style.display = 'none';
+    pendingSlotsData = null;
+  } catch(e) {
+    document.getElementById('slots-upload-result').style.display = 'block';
+    document.getElementById('slots-upload-result').innerHTML =
+      `<div class="warning-box error-box">Error after ${count} rows: ${e.message}</div>`;
+  }
+  btn.textContent = 'Upload to SharePoint'; btn.disabled = false;
+}
+
+function cancelSlotsUpload() {
+  pendingSlotsData = null;
+  document.getElementById('slots-preview').style.display = 'none';
+  document.getElementById('slots-file').value = '';
+}
+
+// ── EXPORT ───────────────────────────────────────────────────
+async function initializeSlotAvailability() {
+  const btn = event.target;
+  btn.textContent = 'Initializing...';
+  btn.disabled = true;
+  const resultEl = document.getElementById('init-slots-result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '<div class="warning-box" style="border-color:var(--amber);color:var(--amber)">⏳ Loading slots — this may take a moment...</div>';
+
+  try {
+    // Get all slots where IsAvailable is null/blank
+    const slots = await spGet(CONFIG.LIST_SLOTS, '', 'Id,IsAvailable');
+    const needsUpdate = slots.filter(s => s.IsAvailable === null || s.IsAvailable === undefined);
+    
+    resultEl.innerHTML = `<div class="warning-box" style="border-color:var(--amber);color:var(--amber)">⏳ Setting ${needsUpdate.length} slots to Available...</div>`;
+
+    let count = 0;
+    for (const slot of needsUpdate) {
+      await spPatch(CONFIG.LIST_SLOTS, slot.Id, { IsAvailable: true });
+      count++;
+      if (count % 50 === 0) {
+        resultEl.innerHTML = `<div class="warning-box" style="border-color:var(--amber);color:var(--amber)">⏳ Updated ${count}/${needsUpdate.length} slots...</div>`;
+      }
+    }
+
+    resultEl.innerHTML = `<div class="warning-box success-box">✅ ${count} slots set to Available. ${slots.length - count} were already set.</div>`;
+  } catch(e) {
+    resultEl.innerHTML = `<div class="warning-box error-box">Error: ${e.message}</div>`;
+  }
+  btn.textContent = 'Set All Slots to Available';
+  btn.disabled = false;
+}
+
+async function exportResults(type) {
+  try {
+    const slots = await spGet(CONFIG.LIST_SLOTS, '', '');
+    let rows, headers;
+    if (type === 'full') {
+      headers = ['DIV','Watch','ShiftStart','ShiftEnd','DaysOff','Sector','Rank','OppCode','Status','FilledBy','Badge','FilledAt'];
+      rows = slots.map(s => [s.DIV,s.field_5,s.shiftstarttime,s.shiftendtime,s.field_10,s.section,s.field_12,s.field_13,s.IsAvailable?'Available':'Filled',s.FilledByName||'',s.FilledByBadge||'',s.FilledAt||'']);
+    } else if (type === 'available') {
+      const avail = slots.filter(s => s.IsAvailable !== false);
+      headers = ['DIV','Watch','ShiftStart','ShiftEnd','DaysOff','Sector','Rank','OppCode'];
+      rows = avail.map(s => [s.DIV,s.field_5,s.shiftstarttime,s.shiftendtime,s.field_10,s.section,s.field_12,s.field_13]);
+    } else {
+      const filled = slots.filter(s => s.IsAvailable === false);
+      headers = ['FilledBy','Badge','Rank','DIV','Watch','DaysOff','Sector','OppCode','FilledAt'];
+      rows = filled.map(s => [s.FilledByName,s.FilledByBadge,s.field_12,s.DIV,s.field_5,s.field_10,s.section,s.field_13,s.FilledAt]);
+    }
+    downloadCSV(headers, rows, `bid_results_${type}_${new Date().toISOString().slice(0,10)}.csv`);
+  } catch(e) { alert('Export error: ' + e.message); }
+}
+
+async function exportAudit() {
+  try {
+    const logs = await spGet(CONFIG.LIST_AUDITLOG, '', '');
+    const headers = ['Timestamp','Action','EmployeeName','Badge','Rank','OppCode','DIV','Watch','DaysOff','Sector','ProctorEmail','Reason'];
+    const rows = logs.map(l => [l.BidTimestamp,l.Action,l.EmployeeName,l.BadgeNumber,l.Rank,l.OppCode,l.DIV,l.Watch,l.DaysOff,l.Section,l.ProctorEmail,l.Reason]);
+    downloadCSV(headers, rows, `audit_log_${new Date().toISOString().slice(0,10)}.csv`);
+  } catch(e) { alert('Export error: ' + e.message); }
+}
+
+function downloadCSV(headers, rows, filename) {
+  const csv = [headers, ...rows].map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = filename;
+  a.click();
+}
+
+// ── MSAL AUTH ────────────────────────────────────────────────
+let msalInstance = null;
+
+const PROCTOR_EMAILS = [
+  'jared.nielsen@dallascityhall.com',
+  'jared.nielsen@dallaspolice.gov',
+  // Add additional proctor emails here
+];
+
+function initMSAL() {
+  if (typeof msal === 'undefined') { setTimeout(initMSAL, 500); return; }
+  msalInstance = new msal.PublicClientApplication({
+    auth: {
+      clientId: CONFIG.CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${CONFIG.TENANT_ID}`,
+      redirectUri: 'https://jarednielsen1.github.io/dpd-bid-portal/proctor-admin.html',
+    },
+    cache: { cacheLocation: 'sessionStorage' },
+  });
+  msalInstance.handleRedirectPromise().then(response => {
+    if (response) onAuthSuccess(response);
+    else checkSession();
+  }).catch(console.error);
+}
+
+function checkSession() {
+  const accounts = msalInstance ? msalInstance.getAllAccounts() : [];
+  if (accounts.length > 0) acquireTokenSilently(accounts[0]);
+  else showLoginScreen();
+}
+
+async function acquireTokenSilently(account) {
+  try {
+    const result = await msalInstance.acquireTokenSilent({
+      scopes: ['User.Read'],
+      account,
+    });
+    onAuthSuccess(result);
+  } catch(e) { showLoginScreen(); }
+}
+
+async function onAuthSuccess(result) {
+  const email = result.account.username.toLowerCase();
+  // Normalize email domain - treat dallaspolice.gov and dallascityhall.com as interchangeable
+  const emailAlt = email.includes('@dallaspolice.gov')
+    ? email.replace('@dallaspolice.gov', '@dallascityhall.com')
+    : email.replace('@dallascityhall.com', '@dallaspolice.gov');
+
+  if (!PROCTOR_EMAILS.includes(email) && !PROCTOR_EMAILS.includes(emailAlt)) {
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0F1F3D;color:#F4F6FA;font-family:Segoe UI,sans-serif;flex-direction:column;gap:16px">
+      <div style="font-size:48px">⛔</div>
+      <h2 style="color:#C0392B">Access Denied</h2>
+      <p style="color:#7A8FAD">Your account (${email}) is not authorized as a bid proctor.</p>
+      <p style="color:#7A8FAD">Contact your system administrator.</p>
+    </div>`;
+    return;
+  }
+  proctorUser = email;
+  document.getElementById('admin-user').textContent = email;
+  document.getElementById('login-overlay').style.display = 'none';
+  loadDashboard();
+}
+
+function showLoginScreen() {
+  document.getElementById('login-overlay').style.display = 'flex';
+}
+
+async function proctorLogin() {
+  if (!msalInstance) return;
+  try {
+    await msalInstance.loginRedirect({
+      scopes: ['User.Read', 'https://dallastxgov.sharepoint.com/AllSites.Write'],
+      prompt: 'select_account',
+    });
+  } catch(e) { console.error(e); }
+}
+
+function proctorSignOut() {
+  if (msalInstance) msalInstance.logoutRedirect();
+}
+
+async function getSharePointToken() {
+  const accounts = msalInstance ? msalInstance.getAllAccounts() : [];
+  if (!accounts.length) throw new Error('Not authenticated');
+  const result = await msalInstance.acquireTokenSilent({
+    scopes: ['https://dallastxgov.sharepoint.com/AllSites.Write'],
+    account: accounts[0],
+  });
+  return result.accessToken;
+}
+
+// Load MSAL
+(function() {
+  const script = document.createElement('script');
+  script.src = 'https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js';
+  script.onload = initMSAL;
+  document.head.appendChild(script);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// HOLIDAY ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+let customHolidays = [];
+let dayOverrides   = [];
+let calculatedSchedule = [];
+let schedulePublished = false;
+
+function getNthWeekday(year, month, n, weekday) {
+  const d = new Date(year, month, 1);
+  if (n === -1) {
+    d.setMonth(month + 1, 0);
+    while (d.getDay() !== weekday) d.setDate(d.getDate() - 1);
+    return d;
+  }
+  let count = 0;
+  while (d.getMonth() === month) {
+    if (d.getDay() === weekday) { count++; if (count === n) return new Date(d); }
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function getBuiltInHolidays(year) {
+  const holidays = [];
+  const add = (date, name) => { if (date) holidays.push({ date: fmtDate(date), name }); };
+  add(new Date(year, 0, 1),   "New Year's Day");
+  add(new Date(year, 5, 19),  "Juneteenth");
+  add(new Date(year, 6, 4),   "Independence Day");
+  add(new Date(year, 10, 11), "Veterans Day");
+  add(new Date(year, 11, 25), "Christmas Day");
+  add(getNthWeekday(year, 0, 3, 1),  "MLK Day");
+  add(getNthWeekday(year, 1, 3, 1),  "President's Day");
+  add(getNthWeekday(year, 4, -1, 1), "Memorial Day");
+  add(getNthWeekday(year, 8, 1, 1),  "Labor Day/Cesar Chavez Day");
+  add(getNthWeekday(year, 9, 2, 1),  "Indigenous Peoples Day");
+  const tgiv = getNthWeekday(year, 10, 4, 4);
+  add(tgiv, "Thanksgiving Day");
+  if (tgiv) { const da = new Date(tgiv); da.setDate(da.getDate()+1); add(da, "Day after Thanksgiving"); }
+  return holidays;
+}
+
+function getAllHolidayDates(year) {
+  const builtin = getBuiltInHolidays(year).map(h => h.date);
+  const custom  = customHolidays.filter(h => h.date.startsWith(String(year))).map(h => h.date);
+  return [...builtin, ...custom];
+}
+
+function isHoliday(date) {
+  return getAllHolidayDates(date.getFullYear()).includes(fmtDate(date));
+}
+
+function isWorkday(date) {
+  const d = date.getDay();
+  return d !== 0 && d !== 6 && !isHoliday(date);
+}
+
+function fmtDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function fmtTime(date) {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDateDisplay(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function nextWorkday(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 1);
+  while (!isWorkday(d)) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function timeMins(str) {
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minsToDate(baseDate, mins) {
+  const d = new Date(baseDate);
+  d.setHours(Math.floor(mins/60), mins%60, 0, 0);
+  return d;
+}
+
+function getSlotsPerDay(ds, de, ls, le) {
+  return Math.floor((timeMins(de) - timeMins(ds) - (timeMins(le) - timeMins(ls))) / 10);
+}
+
+function getDayEnd(dateStr) {
+  const ov = dayOverrides.find(o => o.date === dateStr);
+  return ov ? ov.endTime : document.getElementById('sched-daily-end').value;
+}
+
+function updateSlotCount() {
+  const ds = document.getElementById('sched-daily-start').value;
+  const de = document.getElementById('sched-daily-end').value;
+  const ls = document.getElementById('sched-lunch-start').value;
+  const le = document.getElementById('sched-lunch-end').value;
+  if (ds && de && ls && le) {
+    const slots = getSlotsPerDay(ds, de, ls, le);
+    document.getElementById('sched-slots-per-day').textContent =
+      `${slots} bid slots per standard day (${ds}–${de} minus ${ls}–${le} lunch)`;
+  }
+}
+
+async function calculateSchedule() {
+  const sgtDate    = document.getElementById('sched-sgt-date').value;
+  const sgtTime    = document.getElementById('sched-sgt-time').value;
+  const dailyStart = document.getElementById('sched-daily-start').value;
+  const dailyEnd   = document.getElementById('sched-daily-end').value;
+  const lunchStart = document.getElementById('sched-lunch-start').value;
+  const lunchEnd   = document.getElementById('sched-lunch-end').value;
+  if (!sgtDate || !sgtTime) { alert('Please enter SGT first bid date and time.'); return; }
+
+  let roster;
+  try {
+    roster = await spGet(CONFIG.LIST_ROSTER, '', 'SeniorityOrder,Rank,Title,BadgeNumber,HasBid');
+  } catch(e) { alert('Could not load roster: ' + e.message); return; }
+
+  const rosterByRank = {};
+  ['SGT','SC','PO'].forEach(rank => {
+    rosterByRank[rank] = roster.filter(e => e.Rank === rank).sort((a,b) => a.SeniorityOrder - b.SeniorityOrder);
+  });
+
+  calculatedSchedule = [];
+  let currentDate = new Date(sgtDate + 'T12:00:00');
+  while (!isWorkday(currentDate)) { currentDate.setDate(currentDate.getDate()+1); }
+
+  let isFirstRankFirstDay = true;
+
+  for (const rank of ['SGT','SC','PO']) {
+    const employees = rosterByRank[rank];
+    if (!employees.length) continue;
+    let empIdx = 0;
+
+    while (empIdx < employees.length) {
+      const dateStr  = fmtDate(currentDate);
+      const dayStartStr = (isFirstRankFirstDay) ? sgtTime : dailyStart;
+      const dayEndStr   = getDayEnd(dateStr);
+      const lsMin = timeMins(lunchStart);
+      const leMin = timeMins(lunchEnd);
+      let slotMins = timeMins(dayStartStr);
+      const endMins = timeMins(dayEndStr);
+
+      while (slotMins < endMins && empIdx < employees.length) {
+        if (slotMins >= lsMin && slotMins < leMin) { slotMins = leMin; continue; }
+        const emp = employees[empIdx];
+        const slotDate = minsToDate(currentDate, slotMins);
+        calculatedSchedule.push({
+          rank, seniorityOrder: emp.SeniorityOrder,
+          name: emp.Title || '—', badge: emp.BadgeNumber || '—',
+          date: dateStr, time: fmtTime(slotDate),
+          timeISO: slotDate.toISOString(), hasBid: emp.HasBid || false,
+        });
+        empIdx++;
+        slotMins += 10;
+      }
+
+      isFirstRankFirstDay = false;
+      if (empIdx < employees.length) currentDate = nextWorkday(currentDate);
+    }
+    currentDate = nextWorkday(currentDate);
+  }
+
+  renderScheduleSummary();
+  renderScheduleTable();
+  updateSlotCount();
+}
+
+function renderScheduleSummary() {
+  document.getElementById('sched-summary-card').style.display = 'block';
+  document.getElementById('sched-table-card').style.display = 'block';
+  const rankNames = { SGT: 'Sergeant', SC: 'Senior Corporal', PO: 'Police Officer' };
+  let html = '';
+  ['SGT','SC','PO'].forEach(rank => {
+    const rs = calculatedSchedule.filter(s => s.rank === rank);
+    if (!rs.length) return;
+    const days = [...new Set(rs.map(s => s.date))];
+    html += `<div style="margin-bottom:10px">
+      <strong style="color:var(--gold)">${rankNames[rank]}</strong> — ${rs.length} bidders · ${days.length} day${days.length!==1?'s':''}<br>
+      <span style="color:var(--muted);font-size:12px">
+        First: ${fmtDateDisplay(rs[0].date)} at ${rs[0].time} &nbsp;·&nbsp;
+        Last: ${fmtDateDisplay(rs[rs.length-1].date)} at ${rs[rs.length-1].time}
+      </span>
+    </div>`;
+  });
+  html += `<div style="font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+    Total: ${calculatedSchedule.length} bid windows across ${[...new Set(calculatedSchedule.map(s=>s.date))].length} days
+  </div>`;
+  document.getElementById('sched-summary').innerHTML = html;
+  const allDates = [...new Set(calculatedSchedule.map(s => s.date))].sort();
+  const df = document.getElementById('sched-filter-date');
+  df.innerHTML = '<option value="">All Dates</option>' + allDates.map(d=>`<option value="${d}">${fmtDateDisplay(d)}</option>`).join('');
+  document.getElementById('sched-published-status').textContent =
+    schedulePublished ? '✅ Published — visible to employees' : '⚠️ Not published';
+}
+
+function renderScheduleTable() {
+  const rf = document.getElementById('sched-filter-rank').value;
+  const df = document.getElementById('sched-filter-date').value;
+  let filtered = calculatedSchedule;
+  if (rf) filtered = filtered.filter(s => s.rank === rf);
+  if (df) filtered = filtered.filter(s => s.date === df);
+  const rc = { SGT:'chip-sgt', SC:'chip-sc', PO:'chip-po' };
+  document.getElementById('sched-tbody').innerHTML = filtered.map(s => `
+    <tr style="${s.hasBid?'opacity:0.5':''}">
+      <td style="font-family:var(--font-mono);color:var(--muted)">${s.seniorityOrder}</td>
+      <td><strong>${s.name}</strong></td>
+      <td style="font-family:var(--font-mono)">${s.badge}</td>
+      <td><span class="chip ${rc[s.rank]}">${s.rank}</span></td>
+      <td>${fmtDateDisplay(s.date)}</td>
+      <td style="font-family:var(--font-mono);color:var(--gold)">${s.time}</td>
+      <td>${s.hasBid?'<span style="color:var(--green);font-size:12px">✓ Bid Placed</span>':'<span style="color:var(--muted);font-size:12px">Pending</span>'}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No schedule data</td></tr>';
+}
+
+async function saveSchedule() {
+  if (!calculatedSchedule.length) { alert('No schedule to save.'); return; }
+  const btn = event.target; btn.textContent='Saving...'; btn.disabled=true;
+  try {
+    const data = JSON.stringify({
+      schedule: calculatedSchedule, overrides: dayOverrides, published: schedulePublished,
+      inputs: {
+        sgtDate: document.getElementById('sched-sgt-date').value,
+        sgtTime: document.getElementById('sched-sgt-time').value,
+        dailyStart: document.getElementById('sched-daily-start').value,
+        dailyEnd: document.getElementById('sched-daily-end').value,
+        lunchStart: document.getElementById('sched-lunch-start').value,
+        lunchEnd: document.getElementById('sched-lunch-end').value,
+      },
+      savedAt: new Date().toISOString(),
+    });
+    const ex = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', 'Id');
+    if (ex.length) await spPatch(CONFIG.LIST_CONFIG, ex[0].Id, { ScheduleJSON: data });
+    alert('✅ Schedule saved.');
+  } catch(e) { alert('Error: ' + e.message); }
+  btn.textContent='Save to SharePoint'; btn.disabled=false;
+}
+
+async function loadScheduleFromSharePoint() {
+  try {
+    const items = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', '');
+    if (!items.length || !items[0].ScheduleJSON) { alert('No saved schedule found.'); return; }
+    const data = JSON.parse(items[0].ScheduleJSON);
+    calculatedSchedule = data.schedule || [];
+    dayOverrides = data.overrides || [];
+    schedulePublished = data.published || false;
+    if (data.inputs) {
+      document.getElementById('sched-sgt-date').value = data.inputs.sgtDate||'';
+      document.getElementById('sched-sgt-time').value = data.inputs.sgtTime||'08:00';
+      document.getElementById('sched-daily-start').value = data.inputs.dailyStart||'08:00';
+      document.getElementById('sched-daily-end').value = data.inputs.dailyEnd||'17:00';
+      document.getElementById('sched-lunch-start').value = data.inputs.lunchStart||'12:00';
+      document.getElementById('sched-lunch-end').value = data.inputs.lunchEnd||'13:00';
+    }
+    renderOverridesList();
+    updateSlotCount();
+    if (calculatedSchedule.length) { renderScheduleSummary(); renderScheduleTable(); }
+    alert('✅ Schedule loaded.');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function toggleSchedulePublished() {
+  schedulePublished = !schedulePublished;
+  await saveSchedule();
+  document.getElementById('sched-published-status').textContent =
+    schedulePublished ? '✅ Published — visible to employees' : '⚠️ Not published';
+}
+
+function addDayOverride() {
+  const date = document.getElementById('override-date').value;
+  const end  = document.getElementById('override-end-time').value;
+  if (!date||!end) { alert('Enter both date and end time.'); return; }
+  dayOverrides = dayOverrides.filter(o => o.date !== date);
+  dayOverrides.push({ date, endTime: end });
+  dayOverrides.sort((a,b) => a.date.localeCompare(b.date));
+  renderOverridesList();
+  document.getElementById('override-date').value='';
+  document.getElementById('override-end-time').value='';
+}
+
+function removeDayOverride(date) {
+  dayOverrides = dayOverrides.filter(o => o.date !== date);
+  renderOverridesList();
+}
+
+function renderOverridesList() {
+  const el = document.getElementById('overrides-list');
+  if (!dayOverrides.length) { el.textContent='No overrides set.'; return; }
+  el.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse">
+    <thead><tr>
+      <th style="text-align:left;padding:6px;color:var(--muted);border-bottom:1px solid var(--border)">Date</th>
+      <th style="text-align:left;padding:6px;color:var(--muted);border-bottom:1px solid var(--border)">Custom End</th>
+      <th style="border-bottom:1px solid var(--border)"></th>
+    </tr></thead><tbody>
+    ${dayOverrides.map(o=>`<tr>
+      <td style="padding:6px">${fmtDateDisplay(o.date)}</td>
+      <td style="padding:6px;font-family:var(--font-mono);color:var(--gold)">${o.endTime}</td>
+      <td style="padding:6px"><button class="btn btn-sm btn-ghost" onclick="removeDayOverride('${o.date}')" style="color:var(--red);border-color:var(--red-dim)">Remove</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function previewHolidays() {
+  const year = parseInt(document.getElementById('preview-year').value);
+  if (!year) return;
+  const all = [...getBuiltInHolidays(year), ...customHolidays.filter(h=>h.date.startsWith(String(year)))]
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('holiday-preview-list').innerHTML = all.map(h=>
+    `<span style="color:var(--white)">${fmtDateDisplay(h.date)}</span>
+     <span style="color:var(--muted);margin-left:8px">${h.name}</span><br>`
+  ).join('');
+}
+
+function addCustomHoliday() {
+  const date = document.getElementById('custom-holiday-date').value;
+  const name = document.getElementById('custom-holiday-name').value.trim();
+  if (!date||!name) { alert('Enter both date and description.'); return; }
+  customHolidays = customHolidays.filter(h=>h.date!==date);
+  customHolidays.push({ date, name });
+  customHolidays.sort((a,b)=>a.date.localeCompare(b.date));
+  renderCustomHolidaysList();
+  document.getElementById('custom-holiday-date').value='';
+  document.getElementById('custom-holiday-name').value='';
+}
+
+function removeCustomHoliday(date) {
+  customHolidays = customHolidays.filter(h=>h.date!==date);
+  renderCustomHolidaysList();
+}
+
+function renderCustomHolidaysList() {
+  const el = document.getElementById('custom-holidays-list');
+  if (!customHolidays.length) { el.textContent='No custom holidays added.'; return; }
+  el.innerHTML = customHolidays.map(h=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span>${fmtDateDisplay(h.date)} — ${h.name}</span>
+      <button class="btn btn-sm btn-ghost" onclick="removeCustomHoliday('${h.date}')" style="color:var(--red);border-color:var(--red-dim)">Remove</button>
+    </div>`
+  ).join('');
+}
+
+async function saveHolidays() {
+  try {
+    const ex = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', 'Id');
+    if (ex.length) await spPatch(CONFIG.LIST_CONFIG, ex[0].Id, { DayOverridesJSON: JSON.stringify(customHolidays) });
+    const r = document.getElementById('holidays-result');
+    r.style.display='block';
+    r.innerHTML='<div class="warning-box success-box">✅ Custom holidays saved.</div>';
+    setTimeout(()=>r.style.display='none', 3000);
+  } catch(e) {
+    const r = document.getElementById('holidays-result');
+    r.style.display='block';
+    r.innerHTML=`<div class="warning-box error-box">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadHolidays() {
+  try {
+    const items = await spGet(CONFIG.LIST_CONFIG, 'IsActive eq 1', '');
+    if (items.length && items[0].DayOverridesJSON) {
+      customHolidays = JSON.parse(items[0].DayOverridesJSON);
+      renderCustomHolidaysList();
+    }
+  } catch(e) { console.warn('Holiday load:', e); }
+}
+
+function exportScheduleCSV() {
+  if (!calculatedSchedule.length) { alert('No schedule to export.'); return; }
+  const headers = ['SeniorityOrder','Name','Badge','Rank','BidDate','BidTime','HasBid'];
+  const rows = calculatedSchedule.map(s=>[s.seniorityOrder,s.name,s.badge,s.rank,s.date,s.time,s.hasBid?'Yes':'No']);
+  const csv = [headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `bid_schedule_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+</script>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:#0F1F3D;z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:20px">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABQCAYAAADvCdDvAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA1hpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0iRTg5QjUyOEU1QjBBQkRBQjRBQzBDRTgwOEJDQjcwRDYiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RDdCMEIwRkFGODBBMTFFNEI2NzJEQUQ2MjYwREI5MjEiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RDdCMEIwRjlGODBBMTFFNEI2NzJEQUQ2MjYwREI5MjEiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjAwODAxMTc0MDcyMDY4MTE4MDgzREY0Mjg4QUM4RDVEIiBzdFJlZjpkb2N1bWVudElEPSJFODlCNTI4RTVCMEFCREFCNEFDMENFODA4QkNCNzBENiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRG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" alt="Dallas Police Department" style="height:80px;width:auto;object-fit:contain">
+  <div style="text-align:center">
+    <h2 style="color:#C8A84B;font-size:18px;letter-spacing:0.1em;margin-bottom:6px">BID PROCTOR ADMIN</h2>
+    <p style="color:#7A8FAD;font-size:13px;margin-bottom:24px">Authorized personnel only</p>
+    <button onclick="proctorLogin()" style="background:#2F7FD0;color:white;border:none;border-radius:6px;padding:13px 28px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto">
+      <span style="font-size:18px">⊞</span> Sign in with Microsoft
+    </button>
+    <p style="color:#7A8FAD;font-size:11px;margin-top:16px">Access restricted to authorized bid proctors only</p>
+  </div>
+</div>
+
+</body>
+</html>
