@@ -1105,7 +1105,7 @@ function renderTable() {
       ? `<span class="chip chip-available">Available</span>`
       : `<span class="chip chip-taken">Filled</span>`;
 
-    const filledBy = slot.IsAvailable ? '—' : `<span class="taken-by">${slot.FilledByName || '—'}</span>`;
+    const filledBy = slot.IsAvailable ? '—' : `<span class="taken-by">${slot.FilledByLastName && slot.FilledByFirstName ? slot.FilledByLastName + ', ' + slot.FilledByFirstName : slot.FilledByLastName || slot.FilledByFirstName || '—'}</span>`;
 
     let action = '—';
     if (slot.IsAvailable !== false) {
@@ -1460,7 +1460,8 @@ async function submitBid() {
     const idx = allSlots.findIndex(s => s.Id === pendingSlot.Id);
     if (idx >= 0) {
       allSlots[idx].IsAvailable   = false;
-      allSlots[idx].FilledByName  = currentUser.name;
+      allSlots[idx].FilledByLastName  = filledLastName || (currentUser.name || '').split(',')[0].trim();
+      allSlots[idx].FilledByFirstName = filledFirstName || (currentUser.name || '').split(',')[1]?.trim() || '';
       allSlots[idx].FilledByBadge = currentUser.badge;
     }
 
