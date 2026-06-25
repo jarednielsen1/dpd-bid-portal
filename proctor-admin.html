@@ -1302,7 +1302,7 @@ async function confirmRemoval() {
     // Find the slot by OppCode to get its Id
     const slots = await spGet(CONFIG.LIST_SLOTS, `field_13 eq '${removeTarget.SelectedOppCode}'`, 'Id');
     if (slots.length) {
-      await spPatch(CONFIG.LIST_SLOTS, slots[0].Id, { IsAvailable: true, FilledByName: null, FilledByBadge: null, FilledAt: null });
+      await spPatch(CONFIG.LIST_SLOTS, slots[0].Id, { IsAvailable: true, FilledByFirstName: null, FilledByLastName: null, FilledByBadge: null, FilledByEmail: null, FilledAt: null });
     }
     await spPatch(CONFIG.LIST_ROSTER, removeTarget.Id, { HasBid: false, SelectedSlotID: null, SelectedOppCode: null, BidTimestamp: null });
     await spPost(CONFIG.LIST_AUDITLOG, {
