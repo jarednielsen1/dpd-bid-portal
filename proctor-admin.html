@@ -1243,7 +1243,7 @@ async function submitOverrideBid() {
       Section:         String(selectedOverrideSlot.field_11 || ''),
       Action:          'PROCTOR_BID',
       ProctorEmail:    String(proctorUser || 'unknown'),
-      ActionTimestamp: new Date().toISOString(),
+      BidLogTime: new Date().toISOString(),
     };
     try {
       await spPost(CONFIG.LIST_AUDITLOG, auditEntry);
@@ -1309,7 +1309,7 @@ async function confirmRemoval() {
       Title: `BID REMOVED: ${removeTarget.BadgeNumber}`,
       EmployeeName: removeTarget.Title, BadgeNumber: removeTarget.BadgeNumber,
       Rank: removeTarget.Rank, OppCode: removeTarget.SelectedOppCode,
-      ActionTimestamp: new Date().toISOString(), Action: 'BID_REMOVED',
+      BidLogTime: new Date().toISOString(), Action: 'BID_REMOVED',
       Reason: reason, ProctorEmail: proctorUser || 'unknown',
     });
     document.getElementById('remove-confirm-modal').classList.remove('open');
@@ -1335,9 +1335,9 @@ async function loadAuditLog() {
       filter ? `Action eq '${filter}'` : '',
       ''
     );
-    logs.sort((a,b) => new Date(b.ActionTimestamp) - new Date(a.ActionTimestamp));
+    logs.sort((a,b) => new Date(b.BidLogTime) - new Date(a.BidLogTime));
     tbody.innerHTML = logs.map(log => {
-      const ts  = log.ActionTimestamp ? new Date(log.ActionTimestamp).toLocaleString() : '—';
+      const ts  = log.BidLogTime ? new Date(log.BidLogTime).toLocaleString() : '—';
       const act = log.Action === 'EMPLOYEE_BID' ? '<span style="color:var(--green)">Employee</span>'
                 : log.Action === 'PROCTOR_BID'  ? '<span style="color:var(--amber)">Proctor</span>'
                 : '<span style="color:var(--red)">Removed</span>';
@@ -1719,7 +1719,7 @@ async function exportAudit() {
   try {
     const logs = await spGet(CONFIG.LIST_AUDITLOG, '', '');
     const headers = ['Timestamp','Action','EmployeeName','Badge','Rank','OppCode','DIV','Watch','DaysOff','Sector','ProctorEmail','Reason'];
-    const rows = logs.map(l => [l.ActionTimestamp,l.Action,l.EmployeeName,l.BadgeNumber,l.Rank,l.OppCode,l.DIV,l.Watch,l.DaysOff,l.Section,l.ProctorEmail,l.Reason]);
+    const rows = logs.map(l => [l.BidLogTime,l.Action,l.EmployeeName,l.BadgeNumber,l.Rank,l.OppCode,l.DIV,l.Watch,l.DaysOff,l.Section,l.ProctorEmail,l.Reason]);
     downloadCSV(headers, rows, `audit_log_${new Date().toISOString().slice(0,10)}.csv`);
   } catch(e) { alert('Export error: ' + e.message); }
 }
