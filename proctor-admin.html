@@ -1220,7 +1220,6 @@ async function submitOverrideBid() {
     const overrideNameParts = String(selectedEmployee.Title || '').split(',');
     await spPatch(CONFIG.LIST_SLOTS, selectedOverrideSlot.Id, {
       IsAvailable:       false,
-      FilledByName:      String(selectedEmployee.Title || ''),
       FilledByLastName:  (overrideNameParts[0] || '').trim(),
       FilledByFirstName: (overrideNameParts[1] || '').trim(),
       FilledByBadge:     String(selectedEmployee.BadgeNumber || ''),
