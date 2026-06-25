@@ -1439,7 +1439,7 @@ async function submitBid() {
         Section:         String(pendingSlot.field_11 || ''),
         Action:          'EMPLOYEE_BID',
         ProctorEmail:    'self',
-        ActionTimestamp: new Date().toISOString(),
+        BidLogTime: new Date().toISOString(),
       });
     } catch(auditErr) {
       console.warn('Audit log write failed (non-critical):', auditErr.message, auditErr);
