@@ -1405,7 +1405,6 @@ async function submitBid() {
       const filledFirstName = (nameParts[1] || '').trim();
       await spPatch(CONFIG.LIST_SLOTS, pendingSlot.Id, {
         IsAvailable:       false,
-        FilledByName:      String(currentUser.name || ''),
         FilledByLastName:  filledLastName,
         FilledByFirstName: filledFirstName,
         FilledByBadge:     String(currentUser.badge || ''),
